@@ -1,0 +1,31 @@
+{
+  "name": "weekly-planer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "setup": "prisma generate && prisma db push && tsx scripts/seed.ts",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next-auth": "^5.0.0-beta.25",
+    "@prisma/client": "^6.6.0",
+    "bcryptjs": "^3.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^6.6.0",
+    "tailwindcss": "^4.1.4",
+    "@tailwindcss/postcss": "^4.1.4",
+    "tsx": "^4.19.3"
+  }
+}

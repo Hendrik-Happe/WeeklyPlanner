@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Env (wird von setup.sh generiert)
+.env
+
+# .env enthält nur DATABASE_URL (kein Secret) – kann ins Repo
+
+# Datenbank
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+
+# Misc
+.DS_Store
+*.pem

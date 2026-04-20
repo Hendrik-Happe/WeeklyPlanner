@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  pinHash   String
+  role      String   @default("USER") // USER | ADMIN
+  createdAt DateTime @default(now())
+
+  createdTasks       Task[]           @relation("CreatedBy")
+  assignedTasks      Task[]           @relation("AssignedTo")
+  assignedByMe       Task[]           @relation("AssignedBy")
+  completions        TaskCompletion[]
+  assignments        TaskAssignment[]
+  assignedByMeOnDate TaskAssignment[] @relation("AssignedByOnDate")
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  isPrivate   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  createdById  String
+  createdBy    User   @relation("CreatedBy", fields: [createdById], references: [id])
+
+  assignedToId String?
+  assignedTo   User?  @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  assignedById String? // Wer die Zuweisung vorgenommen hat
+  assignedBy   User?  @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  recurrence  RecurrenceRule?
+  completions TaskCompletion[]
+  assignments TaskAssignment[]
+}
+
+// Datumsspezifische Zuweisung (überschreibt Task.assignedToId für dieses Datum)
+model TaskAssignment {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  date   String // ISO-Datum: "2026-04-20"
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  assignedById String? // Wer die Zuweisung vorgenommen hat
+  assignedBy   User?  @relation("AssignedByOnDate", fields: [assignedById], references: [id])
+
+  @@unique([taskId, date])
+}
+
+model RecurrenceRule {
+  id     String @id @default(cuid())
+  taskId String @unique
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // ONCE | DAILY | WEEKLY | MONTHLY
+  type      String
+  interval  Int     @default(1)
+  weekdays  String? // JSON-Array: [1,3] = Mo,Mi (0=So,1=Mo,...,6=Sa)
+  monthFrom Int?    // 1–12 (inkl.)
+  monthTo   Int?    // 1–12 (inkl.)
+  validFrom  DateTime?
+  validUntil DateTime?
+}
+
+model TaskCompletion {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      String   // ISO-Datum: "2026-04-20"
+  status    String   // DONE | SNOOZED
+  snoozedTo String?  // ISO-Datum falls verschoben
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, date])
+}
