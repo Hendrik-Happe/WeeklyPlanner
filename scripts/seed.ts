@@ -10,6 +10,15 @@ function getPinMinLength(): number {
   return Math.floor(parsed)
 }
 
+function isPinNumericOnlyEnabled(): boolean {
+  const raw = process.env.AUTH_PIN_NUMERIC_ONLY
+  if (!raw) return true
+  const normalized = raw.trim().toLowerCase()
+  if (["1", "true", "yes", "on"].includes(normalized)) return true
+  if (["0", "false", "no", "off"].includes(normalized)) return false
+  return true
+}
+
 async function main() {
   const existing = await prisma.user.findFirst({ where: { role: "ADMIN" } })
   if (existing) {
@@ -20,6 +29,7 @@ async function main() {
   const username = process.env.SEED_ADMIN_USERNAME?.trim()
   const pin = process.env.SEED_ADMIN_PIN?.trim()
   const pinMinLength = getPinMinLength()
+  const numericOnly = isPinNumericOnlyEnabled()
 
   if (!username) {
     throw new Error("SEED_ADMIN_USERNAME fehlt. Bitte beim Setup einen Admin-Benutzernamen angeben.")
@@ -27,6 +37,10 @@ async function main() {
 
   if (!pin || pin.length < pinMinLength) {
     throw new Error(`SEED_ADMIN_PIN fehlt oder ist zu kurz. Bitte mindestens ${pinMinLength} Zeichen angeben.`)
+  }
+
+  if (numericOnly && !/^\d+$/.test(pin)) {
+    throw new Error("SEED_ADMIN_PIN muss nur aus Ziffern bestehen.")
   }
 
   const duplicate = await prisma.user.findUnique({ where: { username } })

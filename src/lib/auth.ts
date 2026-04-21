@@ -10,7 +10,7 @@ import {
   shouldTrustProxyHeaders,
   registerAuthFailure,
 } from "@/lib/auth-rate-limit"
-import { getPinMinLength } from "@/lib/security-config"
+import { isValidPinFormat } from "@/lib/security-config"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365
 const SESSION_UPDATE_AGE = 60 * 60 * 24
@@ -61,7 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const username = (credentials?.username as string | undefined)?.trim()
         const pin = (credentials?.pin as string | undefined)?.trim()
         if (!username || !pin) return null
-        if (pin.length < getPinMinLength()) return null
+        if (!isValidPinFormat(pin)) return null
 
         const rateLimitEnabled = isAuthRateLimitEnabled()
         const key = authRateLimitKey(username, getClientIp(request))
@@ -69,7 +69,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        const user = await prisma.user.findUnique({ where: { username } })
+        const user = await prisma.user.findUnique({
+          where: { username },
+          select: {
+            id: true,
+            username: true,
+            pinHash: true,
+            role: true,
+            sessionVersion: true,
+          },
+        })
         if (!user) {
           if (rateLimitEnabled) await registerAuthFailure(key)
           return null

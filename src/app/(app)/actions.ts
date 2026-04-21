@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
-import { getPinMinLength } from "@/lib/security-config"
+import { getPinRuleText, isValidPinFormat } from "@/lib/security-config"
 
 async function requireSession() {
   const session = await getCurrentSession()
@@ -205,10 +205,9 @@ export async function createUser(formData: FormData) {
   const username = (formData.get("username") as string).trim()
   const pin = formData.get("pin") as string
   const role = parseRole(String(formData.get("role") ?? ""))
-  const pinMinLength = getPinMinLength()
 
-  if (!username || !pin || pin.length < pinMinLength) {
-    throw new Error("Ungültige Eingabe")
+  if (!username || !pin || !isValidPinFormat(pin)) {
+    throw new Error(getPinRuleText())
   }
 
   const pinHash = await bcrypt.hash(pin, 12)
@@ -290,10 +289,9 @@ export async function changePin(formData: FormData) {
   const currentPin = formData.get("currentPin") as string
   const newPin = formData.get("newPin") as string
   const confirmPin = formData.get("confirmPin") as string
-  const pinMinLength = getPinMinLength()
 
-  if (!newPin || newPin.length < pinMinLength) {
-    throw new Error(`PIN muss mindestens ${pinMinLength} Zeichen haben`)
+  if (!newPin || !isValidPinFormat(newPin)) {
+    throw new Error(getPinRuleText())
   }
   if (newPin !== confirmPin) throw new Error("PINs stimmen nicht überein")
 
@@ -382,10 +380,9 @@ export async function adminResetPin(formData: FormData) {
 
   const userId = formData.get("userId") as string
   const newPin = formData.get("newPin") as string
-  const pinMinLength = getPinMinLength()
 
-  if (!newPin || newPin.length < pinMinLength) {
-    throw new Error(`PIN muss mindestens ${pinMinLength} Zeichen haben`)
+  if (!newPin || !isValidPinFormat(newPin)) {
+    throw new Error(getPinRuleText())
   }
 
   const pinHash = await bcrypt.hash(newPin, 12)

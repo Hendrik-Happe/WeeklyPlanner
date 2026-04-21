@@ -92,6 +92,7 @@ ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT_SOFT" '"#93c5fd"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL" '"#ffffff"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL_SOFT" '"#bfdbfe"'
 ensure_env_var "AUTH_PIN_MIN_LENGTH" "$PIN_MIN_LENGTH"
+ensure_env_var "AUTH_PIN_NUMERIC_ONLY" "true"
 ensure_env_var "AUTH_RATE_LIMIT_ENABLED" "true"
 ensure_env_var "AUTH_RATE_LIMIT_WINDOW_SECONDS" "300"
 ensure_env_var "AUTH_RATE_LIMIT_MAX_ATTEMPTS" "5"
@@ -139,6 +140,11 @@ if [ -t 0 ]; then
     ADMIN_PIN=$(prompt_secret "Admin-PIN (mindestens ${PIN_MIN_LENGTH} Zeichen)")
     if [ ${#ADMIN_PIN} -lt "$PIN_MIN_LENGTH" ]; then
       echo "PIN ist zu kurz. Bitte mindestens ${PIN_MIN_LENGTH} Zeichen verwenden."
+      continue
+    fi
+
+    if ! [[ "$ADMIN_PIN" =~ ^[0-9]+$ ]]; then
+      echo "PIN darf nur Ziffern enthalten."
       continue
     fi
 
