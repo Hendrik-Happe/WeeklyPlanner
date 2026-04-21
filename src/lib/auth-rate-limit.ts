@@ -1,10 +1,4 @@
-type Bucket = {
-  attempts: number
-  firstAttemptAt: number
-  blockedUntil: number
-}
-
-const buckets = new Map<string, Bucket>()
+import { prisma } from "@/lib/prisma"
 
 function envNumber(name: string, fallback: number): number {
   const raw = process.env[name]
@@ -27,6 +21,10 @@ function nowMs(): number {
   return Date.now()
 }
 
+function nowDate(): Date {
+  return new Date()
+}
+
 function windowMs(): number {
   return envNumber("AUTH_RATE_LIMIT_WINDOW_SECONDS", 300) * 1000
 }
@@ -43,53 +41,73 @@ export function isAuthRateLimitEnabled(): boolean {
   return envBoolean("AUTH_RATE_LIMIT_ENABLED", true)
 }
 
+export function shouldTrustProxyHeaders(): boolean {
+  return envBoolean("AUTH_TRUST_PROXY_HEADERS", false)
+}
+
 export function authRateLimitKey(username: string, ip: string): string {
   return `${username.toLowerCase()}|${ip}`
 }
 
-export function isAuthBlocked(key: string): boolean {
+export async function isAuthBlocked(key: string): Promise<boolean> {
   if (!isAuthRateLimitEnabled()) return false
 
-  const bucket = buckets.get(key)
+  const bucket = await prisma.authRateLimit.findUnique({ where: { key } })
   if (!bucket) return false
 
-  const now = nowMs()
-  if (bucket.blockedUntil > now) return true
+  const now = nowDate()
+  if (bucket.blockedUntil && bucket.blockedUntil > now) return true
 
-  if (now - bucket.firstAttemptAt > windowMs()) {
-    buckets.delete(key)
+  if (now.getTime() - bucket.firstAttemptAt.getTime() > windowMs()) {
+    await prisma.authRateLimit.delete({ where: { key } })
     return false
   }
 
   return false
 }
 
-export function registerAuthFailure(key: string): void {
+export async function registerAuthFailure(key: string): Promise<void> {
   if (!isAuthRateLimitEnabled()) return
 
-  const now = nowMs()
+  const now = nowDate()
   const winMs = windowMs()
   const max = maxAttempts()
   const blockDuration = blockMs()
 
-  const existing = buckets.get(key)
-  if (!existing || now - existing.firstAttemptAt > winMs) {
-    buckets.set(key, {
+  const existing = await prisma.authRateLimit.findUnique({ where: { key } })
+  if (!existing || now.getTime() - existing.firstAttemptAt.getTime() > winMs) {
+    await prisma.authRateLimit.upsert({
+      where: { key },
+      create: {
+        key,
+        attempts: 1,
+        firstAttemptAt: now,
+        blockedUntil: null,
+      },
+      update: {
       attempts: 1,
-      firstAttemptAt: now,
-      blockedUntil: 0,
+        firstAttemptAt: now,
+        blockedUntil: null,
+      },
     })
     return
   }
 
-  existing.attempts += 1
-  if (existing.attempts >= max) {
-    existing.blockedUntil = now + blockDuration
-  }
-  buckets.set(key, existing)
+  const attempts = existing.attempts + 1
+  const blockedUntil = attempts >= max
+    ? new Date(now.getTime() + blockDuration)
+    : existing.blockedUntil
+
+  await prisma.authRateLimit.update({
+    where: { key },
+    data: {
+      attempts,
+      blockedUntil,
+    },
+  })
 }
 
-export function clearAuthRateLimit(key: string): void {
+export async function clearAuthRateLimit(key: string): Promise<void> {
   if (!isAuthRateLimitEnabled()) return
-  buckets.delete(key)
+  await prisma.authRateLimit.deleteMany({ where: { key } })
 }

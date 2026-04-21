@@ -7,14 +7,21 @@ import {
   clearAuthRateLimit,
   isAuthBlocked,
   isAuthRateLimitEnabled,
+  shouldTrustProxyHeaders,
   registerAuthFailure,
 } from "@/lib/auth-rate-limit"
+import { getPinMinLength } from "@/lib/security-config"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365
 const SESSION_UPDATE_AGE = 60 * 60 * 24
 
 function getClientIp(request?: Request): string {
   if (!request) return "unknown"
+
+  if (!shouldTrustProxyHeaders()) {
+    return "unknown"
+  }
+
   const xForwardedFor = request.headers.get("x-forwarded-for")
   if (xForwardedFor) {
     const firstIp = xForwardedFor.split(",")[0]?.trim()
@@ -54,28 +61,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const username = (credentials?.username as string | undefined)?.trim()
         const pin = (credentials?.pin as string | undefined)?.trim()
         if (!username || !pin) return null
+        if (pin.length < getPinMinLength()) return null
 
         const rateLimitEnabled = isAuthRateLimitEnabled()
         const key = authRateLimitKey(username, getClientIp(request))
-        if (rateLimitEnabled && isAuthBlocked(key)) {
+        if (rateLimitEnabled && await isAuthBlocked(key)) {
           return null
         }
 
         const user = await prisma.user.findUnique({ where: { username } })
         if (!user) {
-          if (rateLimitEnabled) registerAuthFailure(key)
+          if (rateLimitEnabled) await registerAuthFailure(key)
           return null
         }
 
         const valid = await bcrypt.compare(pin, user.pinHash)
         if (!valid) {
-          if (rateLimitEnabled) registerAuthFailure(key)
+          if (rateLimitEnabled) await registerAuthFailure(key)
           return null
         }
 
-        if (rateLimitEnabled) clearAuthRateLimit(key)
+        if (rateLimitEnabled) await clearAuthRateLimit(key)
 
-        return { id: user.id, name: user.username, role: user.role }
+        return {
+          id: user.id,
+          name: user.username,
+          role: user.role,
+          sessionVersion: user.sessionVersion,
+        }
       },
     }),
   ],
@@ -84,6 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id
         token.role = (user as { role?: string }).role
+        token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0
       }
       return token
     },
@@ -91,6 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token) {
         session.user.id = token.id as string
         session.user.role = token.role as string
+        session.user.sessionVersion = (token.sessionVersion as number | undefined) ?? 0
       }
       return session
     },
@@ -103,10 +118,11 @@ export async function getCurrentSession() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, username: true, role: true },
+    select: { id: true, username: true, role: true, sessionVersion: true },
   })
 
   if (!user) return null
+  if ((session.user.sessionVersion ?? 0) !== user.sessionVersion) return null
 
   return {
     ...session,

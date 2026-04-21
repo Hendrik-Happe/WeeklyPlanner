@@ -12,6 +12,7 @@ model User {
   username  String   @unique
   pinHash   String
   role      String   @default("USER") // USER | ADMIN
+  sessionVersion Int  @default(0)
   shoppingView String @default("LIST") // LIST | GRID
   createdAt DateTime @default(now())
 
@@ -26,6 +27,15 @@ model User {
   createdShoppingItems ShoppingItem[] @relation("ShoppingItemCreatedBy")
   createdShoppingLists ShoppingList[] @relation("ShoppingListCreatedBy")
   shoppingListMemberships ShoppingListMember[]
+}
+
+model AuthRateLimit {
+  key            String   @id
+  attempts       Int      @default(0)
+  firstAttemptAt DateTime
+  blockedUntil   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model ShoppingList {
