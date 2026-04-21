@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { clearMealPlan, setMealPlan } from "@/app/(app)/actions"
-import RecipePicker from "@/components/RecipePicker"
+import { clearMealPlan } from "@/app/(app)/actions"
+import MealWeekPickerOverlay from "@/components/MealWeekPickerOverlay"
 
 type Recipe = {
   id: string
@@ -81,10 +81,17 @@ export default function MealWeekGrid({ days, recipes, mealPlans, weekOffset }: P
                 )}
               </div>
 
-              <form action={setMealPlan} className="space-y-2">
-                <input type="hidden" name="date" value={dateStr} />
-                <RecipePicker recipes={recipes} defaultRecipeId={meal?.recipe.id} compact submitOnSelect />
-              </form>
+              <MealWeekPickerOverlay
+                dateStr={dateStr}
+                dateLabel={date.toLocaleDateString("de-DE", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "Europe/Berlin",
+                })}
+                recipes={recipes}
+                defaultRecipeId={meal?.recipe.id}
+              />
 
               {meal && (
                 <form action={clearMealPlan} className="mt-2">
