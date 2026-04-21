@@ -1,5 +1,5 @@
 import { addShoppingItem, removeShoppingItem, restoreShoppingItem, updateShoppingItemTags } from "@/app/(app)/actions"
-import ShoppingItemForm from "@/components/ShoppingItemForm"
+import ShoppingAddOverlay from "@/components/ShoppingAddOverlay"
 import ShoppingTagEditor from "@/components/ShoppingTagEditor"
 import { getRemovedShoppingItems, getShoppingItems, getShoppingSuggestions } from "@/lib/shopping"
 
@@ -11,7 +11,7 @@ export default async function ShoppingPage() {
   ])
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-6">
+    <div className="max-w-2xl mx-auto p-4 pb-28 space-y-6">
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <h1 className="text-xl font-bold mb-1">Einkaufsliste</h1>
         <p className="text-sm text-gray-500">Items mit optionalen Tags wie Menge, Farbe oder Qualität.</p>
@@ -60,15 +60,6 @@ export default async function ShoppingPage() {
       </section>
 
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-        <h2 className="font-semibold mb-3">Neues Item</h2>
-        <ShoppingItemForm
-          action={addShoppingItem}
-          nameSuggestions={suggestions.names}
-          tagsByItem={suggestions.tagsByItem}
-        />
-      </section>
-
-      <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <h2 className="font-semibold mb-3">Entfernte Items ({removedItems.length})</h2>
         {removedItems.length === 0 ? (
           <p className="text-sm text-gray-400">Keine entfernten Items.</p>
@@ -91,6 +82,12 @@ export default async function ShoppingPage() {
           </div>
         )}
       </section>
+
+      <ShoppingAddOverlay
+        action={addShoppingItem}
+        nameSuggestions={suggestions.names}
+        tagsByItem={suggestions.tagsByItem}
+      />
     </div>
   )
 }
