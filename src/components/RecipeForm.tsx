@@ -2,12 +2,22 @@
 
 import { useState } from "react"
 
-type Props = {
-  action: (formData: FormData) => Promise<void>
+type InitialValues = {
+  title?: string
+  description?: string | null
+  sourceType?: string
+  sourceText?: string | null
+  url?: string | null
 }
 
-export default function RecipeForm({ action }: Props) {
-  const [sourceType, setSourceType] = useState("APP")
+type Props = {
+  action: (formData: FormData) => Promise<void>
+  initialValues?: InitialValues
+  submitLabel?: string
+}
+
+export default function RecipeForm({ action, initialValues, submitLabel = "Rezept speichern" }: Props) {
+  const [sourceType, setSourceType] = useState(initialValues?.sourceType ?? "APP")
 
   return (
     <form action={action} className="space-y-4">
@@ -16,6 +26,7 @@ export default function RecipeForm({ action }: Props) {
         <input
           name="title"
           required
+          defaultValue={initialValues?.title ?? ""}
           placeholder="z.B. Lasagne"
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -41,6 +52,7 @@ export default function RecipeForm({ action }: Props) {
           <input
             name="sourceText"
             required
+            defaultValue={initialValues?.sourceText ?? ""}
             placeholder="z.B. Familienkochbuch S. 42"
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -54,6 +66,7 @@ export default function RecipeForm({ action }: Props) {
             type="url"
             name="url"
             required
+            defaultValue={initialValues?.url ?? ""}
             placeholder="https://..."
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -67,6 +80,7 @@ export default function RecipeForm({ action }: Props) {
         <textarea
           name="description"
           rows={4}
+          defaultValue={initialValues?.description ?? ""}
           placeholder={sourceType === "APP" ? "Zutaten, Schritte, Hinweise..." : "Optional..."}
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
@@ -76,7 +90,7 @@ export default function RecipeForm({ action }: Props) {
         type="submit"
         className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-3 font-semibold text-base transition-colors"
       >
-        Rezept speichern
+        {submitLabel}
       </button>
     </form>
   )

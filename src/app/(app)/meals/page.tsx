@@ -1,4 +1,5 @@
-import { createRecipe } from "@/app/(app)/actions"
+import { createRecipe, deleteRecipe, updateRecipe } from "@/app/(app)/actions"
+import MealWeekGrid from "@/components/MealWeekGrid"
 import RecipeForm from "@/components/RecipeForm"
 import { getMealPlansForDates, getRecipes } from "@/lib/meals"
 import { formatDate, getTodayInBerlin } from "@/lib/tasks"
@@ -11,13 +12,35 @@ function nextDays(start: Date, count: number) {
   })
 }
 
-export default async function MealsPage() {
+function getWeekDays(date: Date): Date[] {
+  const day = date.getDay()
+  const monday = new Date(date)
+  monday.setDate(date.getDate() - (day === 0 ? 6 : day - 1))
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+}
+
+export default async function MealsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>
+}) {
+  const { week: weekParam } = await searchParams
+  const weekOffset = parseInt(weekParam ?? "0", 10) || 0
   const today = getTodayInBerlin()
+  const baseDate = new Date(today)
+  baseDate.setDate(today.getDate() + weekOffset * 7)
+  const weekDays = getWeekDays(baseDate)
+  const weekDates = weekDays.map((day) => formatDate(day))
   const upcomingDays = nextDays(today, 7)
   const dates = upcomingDays.map((day) => formatDate(day))
-  const [recipes, mealPlans] = await Promise.all([
+  const [recipes, mealPlans, mealPlansForWeek] = await Promise.all([
     getRecipes(),
     getMealPlansForDates(dates),
+    getMealPlansForDates(weekDates),
   ])
 
   return (
@@ -32,6 +55,19 @@ export default async function MealsPage() {
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
         <h2 className="text-lg font-semibold mb-4">Rezept hinzufügen</h2>
         <RecipeForm action={createRecipe} />
+      </section>
+
+      <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+        <MealWeekGrid
+          weekOffset={weekOffset}
+          days={weekDays.map((date) => ({
+            date,
+            dateStr: formatDate(date),
+            isToday: formatDate(date) === formatDate(today),
+          }))}
+          recipes={recipes}
+          mealPlans={mealPlansForWeek}
+        />
       </section>
 
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
@@ -70,7 +106,7 @@ export default async function MealsPage() {
           <p className="text-sm text-gray-400">Noch keine Rezepte gespeichert.</p>
         ) : (
           <div className="space-y-3">
-            {recipes.map((recipe) => (
+            {recipes.map((recipe: (typeof recipes)[number]) => (
               <div key={recipe.id} className="rounded-xl border border-gray-100 p-4 bg-gray-50">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -88,6 +124,34 @@ export default async function MealsPage() {
                   </div>
                   <p className="text-xs text-gray-400">von {recipe.createdBy.username}</p>
                 </div>
+
+                <details className="mt-3">
+                  <summary className="text-sm text-blue-600 cursor-pointer select-none">
+                    Rezept bearbeiten
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <RecipeForm
+                      action={updateRecipe.bind(null, recipe.id)}
+                      submitLabel="Änderungen speichern"
+                      initialValues={{
+                        title: recipe.title,
+                        description: recipe.description,
+                        sourceType: recipe.sourceType,
+                        sourceText: recipe.sourceText,
+                        url: recipe.url,
+                      }}
+                    />
+                    <form action={deleteRecipe}>
+                      <input type="hidden" name="recipeId" value={recipe.id} />
+                      <button
+                        type="submit"
+                        className="text-sm text-red-600 hover:text-red-700"
+                      >
+                        Rezept löschen
+                      </button>
+                    </form>
+                  </div>
+                </details>
               </div>
             ))}
           </div>

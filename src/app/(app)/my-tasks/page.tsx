@@ -40,7 +40,7 @@ export default async function MyTasksPage() {
         <p className="text-gray-400 text-center py-16">Noch keine Aufgaben</p>
       ) : (
         <div className="space-y-3">
-          {tasks.map((task) => (
+          {tasks.map((task: (typeof tasks)[number]) => (
             <div key={task.id}>
               {task.recurrence && (
                 <p className="text-xs text-gray-400 px-1 mb-1">

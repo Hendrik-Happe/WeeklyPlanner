@@ -25,7 +25,7 @@ export default async function DayPage({
     getRecipes(),
   ])
 
-  if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c) => c.date === dateStr && c.status === "DONE"))
+  if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c: { date: string; status: string }) => c.date === dateStr && c.status === "DONE"))
   if (hideAssigned) tasks = tasks.filter((t) => !resolveAssignedTo(t, dateStr))
 
   const isAdmin = session!.user.role === "ADMIN"

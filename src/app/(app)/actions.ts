@@ -51,22 +51,21 @@ export async function snoozeTask(formData: FormData) {
     throw new Error("Diese Aufgabe wurde bereits verschoben und kann vorerst nicht erneut verschoben werden")
   }
 
-  await prisma.$transaction(async (tx) => {
-    const sourceAssignment = await tx.taskAssignment.findFirst({
-      where: { taskId, date },
-      select: { userId: true, assignedById: true },
-    })
+  const sourceAssignment = await prisma.taskAssignment.findFirst({
+    where: { taskId, date },
+    select: { userId: true, assignedById: true },
+  })
 
-    await tx.taskCompletion.upsert({
-      where: { taskId_date: { taskId, date } },
-      create: { taskId, userId: session.user.id, date, status: "SNOOZED", snoozedTo: tomorrow },
-      update: { status: "SNOOZED", snoozedTo: tomorrow },
-    })
+  const upsertCompletion = prisma.taskCompletion.upsert({
+    where: { taskId_date: { taskId, date } },
+    create: { taskId, userId: session.user.id, date, status: "SNOOZED", snoozedTo: tomorrow },
+    update: { status: "SNOOZED", snoozedTo: tomorrow },
+  })
 
-    // Datumsspezifische Zuweisung auf den Zieltag mitnehmen,
-    // damit sie durch das Verschieben nicht "verschwindet".
-    if (sourceAssignment) {
-      await tx.taskAssignment.upsert({
+  if (sourceAssignment) {
+    await prisma.$transaction([
+      upsertCompletion,
+      prisma.taskAssignment.upsert({
         where: { taskId_date: { taskId, date: tomorrow } },
         create: {
           taskId,
@@ -78,9 +77,11 @@ export async function snoozeTask(formData: FormData) {
           userId: sourceAssignment.userId,
           assignedById: sourceAssignment.assignedById,
         },
-      })
-    }
-  })
+      }),
+    ])
+  } else {
+    await upsertCompletion
+  }
 
   revalidatePath("/day")
   revalidatePath("/week")
@@ -352,6 +353,65 @@ export async function createRecipe(formData: FormData) {
       createdById: session.user.id,
     },
   })
+
+  revalidatePath("/meals")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function updateRecipe(recipeId: string, formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const recipe = await prisma.recipe.findUnique({ where: { id: recipeId } })
+  if (!recipe) throw new Error("Rezept nicht gefunden")
+
+  const isOwner = recipe.createdById === session.user.id
+  const isAdmin = session.user.role === "ADMIN"
+  if (!isOwner && !isAdmin) throw new Error("Kein Zugriff")
+
+  const title = (formData.get("title") as string)?.trim()
+  const description = (formData.get("description") as string)?.trim() || null
+  const sourceType = (formData.get("sourceType") as string) || "APP"
+  const sourceText = (formData.get("sourceText") as string)?.trim() || null
+  const url = (formData.get("url") as string)?.trim() || null
+
+  if (!title) throw new Error("Titel fehlt")
+  if (sourceType === "BOOK" && !sourceText) throw new Error("Bitte Buch oder Seitenangabe angeben")
+  if (sourceType === "LINK" && !url) throw new Error("Bitte Link angeben")
+
+  await prisma.recipe.update({
+    where: { id: recipeId },
+    data: {
+      title,
+      description,
+      sourceType,
+      sourceText,
+      url,
+    },
+  })
+
+  revalidatePath("/meals")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function deleteRecipe(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const recipeId = formData.get("recipeId") as string
+  const recipe = await prisma.recipe.findUnique({ where: { id: recipeId } })
+  if (!recipe) throw new Error("Rezept nicht gefunden")
+
+  const isOwner = recipe.createdById === session.user.id
+  const isAdmin = session.user.role === "ADMIN"
+  if (!isOwner && !isAdmin) throw new Error("Kein Zugriff")
+
+  await prisma.$transaction([
+    prisma.mealPlan.deleteMany({ where: { recipeId } }),
+    prisma.recipe.delete({ where: { id: recipeId } }),
+  ])
 
   revalidatePath("/meals")
   revalidatePath("/day")

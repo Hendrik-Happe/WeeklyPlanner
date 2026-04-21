@@ -53,7 +53,7 @@ export default async function AdminPage() {
       <section>
         <h2 className="font-semibold mb-3">Alle Nutzer ({users.length})</h2>
         <div className="space-y-2">
-          {users.map((user) => (
+          {users.map((user: { id: string; username: string; role: string }) => (
             <details
               key={user.id}
               className="bg-white rounded-xl border border-gray-100"

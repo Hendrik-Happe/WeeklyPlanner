@@ -69,7 +69,7 @@ export default async function WeekPage({
     weekDays.map(async (day) => {
       const dateStr = formatDate(day)
       let tasks = await getTasksForDate(dateStr, session!.user.id)
-      if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c) => c.date === dateStr && c.status === "DONE"))
+      if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c: { date: string; status: string }) => c.date === dateStr && c.status === "DONE"))
       if (hideAssigned) tasks = tasks.filter((t) => !resolveAssignedTo(t, dateStr))
       return { date: day, dateStr, tasks }
     })
