@@ -451,3 +451,153 @@ export async function clearMealPlan(formData: FormData) {
   revalidatePath("/day")
   revalidatePath("/week")
 }
+
+function normalizeShoppingValue(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function collectTags(formData: FormData): string[] {
+  const selected = formData
+    .getAll("selectedTags")
+    .map((v) => String(v).trim())
+    .filter(Boolean)
+
+  const raw = (formData.get("tags") as string | null)?.trim() ?? ""
+  const manual = raw
+    .split(/[,;\n]/)
+    .map((v) => v.trim())
+    .filter(Boolean)
+
+  const unique = new Map<string, string>()
+  for (const tag of [...selected, ...manual]) {
+    const normalized = normalizeShoppingValue(tag)
+    if (!normalized) continue
+    if (!unique.has(normalized)) unique.set(normalized, tag)
+  }
+  return Array.from(unique.values())
+}
+
+export async function addShoppingItem(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const name = (formData.get("name") as string)?.trim()
+  if (!name) throw new Error("Name fehlt")
+
+  const nameNormalized = normalizeShoppingValue(name)
+  const tags = collectTags(formData)
+
+  await prisma.shoppingItem.create({
+    data: {
+      name,
+      nameNormalized,
+      createdById: session.user.id,
+      tags: {
+        create: tags.map((tag) => ({
+          value: tag,
+          valueNormalized: normalizeShoppingValue(tag),
+        })),
+      },
+    },
+  })
+
+  if (tags.length > 0) {
+    await prisma.$transaction(
+      tags.map((tag) =>
+        prisma.shoppingTagHistory.upsert({
+          where: {
+            itemNameNormalized_valueNormalized: {
+              itemNameNormalized: nameNormalized,
+              valueNormalized: normalizeShoppingValue(tag),
+            },
+          },
+          create: {
+            itemNameNormalized: nameNormalized,
+            value: tag,
+            valueNormalized: normalizeShoppingValue(tag),
+          },
+          update: {},
+        })
+      )
+    )
+  }
+
+  revalidatePath("/shopping")
+}
+
+export async function removeShoppingItem(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const itemId = formData.get("itemId") as string
+  if (!itemId) throw new Error("Ungültige Eingabe")
+
+  await prisma.shoppingItem.update({
+    where: { id: itemId },
+    data: { removedAt: new Date() },
+  })
+
+  revalidatePath("/shopping")
+}
+
+export async function updateShoppingItemTags(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const itemId = formData.get("itemId") as string
+  if (!itemId) throw new Error("Ungültige Eingabe")
+
+  const item = await prisma.shoppingItem.findUnique({
+    where: { id: itemId },
+    select: { id: true, nameNormalized: true },
+  })
+  if (!item) throw new Error("Item nicht gefunden")
+
+  const tags = collectTags(formData)
+
+  await prisma.$transaction([
+    prisma.shoppingItemTag.deleteMany({ where: { itemId } }),
+    ...tags.map((tag) =>
+      prisma.shoppingItemTag.create({
+        data: {
+          itemId,
+          value: tag,
+          valueNormalized: normalizeShoppingValue(tag),
+        },
+      })
+    ),
+    ...tags.map((tag) =>
+      prisma.shoppingTagHistory.upsert({
+        where: {
+          itemNameNormalized_valueNormalized: {
+            itemNameNormalized: item.nameNormalized,
+            valueNormalized: normalizeShoppingValue(tag),
+          },
+        },
+        create: {
+          itemNameNormalized: item.nameNormalized,
+          value: tag,
+          valueNormalized: normalizeShoppingValue(tag),
+        },
+        update: {},
+      })
+    ),
+  ])
+
+  revalidatePath("/shopping")
+}
+
+export async function restoreShoppingItem(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const itemId = formData.get("itemId") as string
+  if (!itemId) throw new Error("Ungültige Eingabe")
+
+  await prisma.shoppingItem.update({
+    where: { id: itemId },
+    data: { removedAt: null },
+  })
+
+  revalidatePath("/shopping")
+}

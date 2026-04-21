@@ -7,6 +7,7 @@ const BASE_ITEMS = [
   { href: "/day", label: "Heute", icon: "📅" },
   { href: "/week", label: "Woche", icon: "📆" },
   { href: "/meals", label: "Essen", icon: "🍽️" },
+  { href: "/shopping", label: "Einkauf", icon: "🛒" },
   { href: "/my-tasks", label: "Meine", icon: "✅" },
   { href: "/tasks/new", label: "Neu", icon: "➕" },
   { href: "/settings", label: "Konto", icon: "👤" },

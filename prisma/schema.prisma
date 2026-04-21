@@ -22,6 +22,7 @@ model User {
   assignedByMeOnDate TaskAssignment[] @relation("AssignedByOnDate")
   createdRecipes     Recipe[]         @relation("RecipeCreatedBy")
   assignedMealPlans  MealPlan[]       @relation("MealPlanAssignedBy")
+  createdShoppingItems ShoppingItem[] @relation("ShoppingItemCreatedBy")
 }
 
 model Task {
@@ -113,4 +114,40 @@ model MealPlan {
 
   assignedById String
   assignedBy   User   @relation("MealPlanAssignedBy", fields: [assignedById], references: [id])
+}
+
+model ShoppingItem {
+  id             String   @id @default(cuid())
+  name           String
+  nameNormalized String
+  removedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdById String
+  createdBy   User @relation("ShoppingItemCreatedBy", fields: [createdById], references: [id])
+
+  tags ShoppingItemTag[]
+
+  @@index([nameNormalized])
+}
+
+model ShoppingItemTag {
+  id              String @id @default(cuid())
+  itemId          String
+  item            ShoppingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  value           String
+  valueNormalized String
+
+  @@unique([itemId, valueNormalized])
+}
+
+model ShoppingTagHistory {
+  id                 String   @id @default(cuid())
+  itemNameNormalized String
+  value              String
+  valueNormalized    String
+  createdAt          DateTime @default(now())
+
+  @@unique([itemNameNormalized, valueNormalized])
 }
