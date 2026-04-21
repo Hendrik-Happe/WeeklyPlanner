@@ -2,9 +2,30 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import {
+  authRateLimitKey,
+  clearAuthRateLimit,
+  isAuthBlocked,
+  isAuthRateLimitEnabled,
+  registerAuthFailure,
+} from "@/lib/auth-rate-limit"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365
 const SESSION_UPDATE_AGE = 60 * 60 * 24
+
+function getClientIp(request?: Request): string {
+  if (!request) return "unknown"
+  const xForwardedFor = request.headers.get("x-forwarded-for")
+  if (xForwardedFor) {
+    const firstIp = xForwardedFor.split(",")[0]?.trim()
+    if (firstIp) return firstIp
+  }
+
+  const xRealIp = request.headers.get("x-real-ip")?.trim()
+  if (xRealIp) return xRealIp
+
+  return "unknown"
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
@@ -29,16 +50,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         username: { label: "Benutzername" },
         pin: { label: "PIN", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const username = (credentials?.username as string | undefined)?.trim()
         const pin = (credentials?.pin as string | undefined)?.trim()
         if (!username || !pin) return null
 
+        const rateLimitEnabled = isAuthRateLimitEnabled()
+        const key = authRateLimitKey(username, getClientIp(request))
+        if (rateLimitEnabled && isAuthBlocked(key)) {
+          return null
+        }
+
         const user = await prisma.user.findUnique({ where: { username } })
-        if (!user) return null
+        if (!user) {
+          if (rateLimitEnabled) registerAuthFailure(key)
+          return null
+        }
 
         const valid = await bcrypt.compare(pin, user.pinHash)
-        if (!valid) return null
+        if (!valid) {
+          if (rateLimitEnabled) registerAuthFailure(key)
+          return null
+        }
+
+        if (rateLimitEnabled) clearAuthRateLimit(key)
 
         return { id: user.id, name: user.username, role: user.role }
       },
