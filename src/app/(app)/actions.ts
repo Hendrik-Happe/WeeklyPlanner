@@ -13,6 +13,31 @@ async function requireSession() {
   return session
 }
 
+const ALLOWED_USER_ROLES = new Set(["USER", "ADMIN"])
+const ALLOWED_RECIPE_SOURCE_TYPES = new Set(["APP", "BOOK", "LINK"])
+
+function parseRole(value: string): "USER" | "ADMIN" {
+  if (!ALLOWED_USER_ROLES.has(value)) throw new Error("Ungültige Rolle")
+  return value as "USER" | "ADMIN"
+}
+
+function sanitizeRecipeUrl(rawUrl: string | null): string | null {
+  if (!rawUrl) return null
+
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new Error("Ungültiger Link")
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Ungültiger Link")
+  }
+
+  return parsed.toString()
+}
+
 async function getAuthorizedTask(
   userId: string,
   taskId: string,
@@ -179,7 +204,7 @@ export async function createUser(formData: FormData) {
 
   const username = (formData.get("username") as string).trim()
   const pin = formData.get("pin") as string
-  const role = formData.get("role") as string
+  const role = parseRole(String(formData.get("role") ?? ""))
   const pinMinLength = getPinMinLength()
 
   if (!username || !pin || pin.length < pinMinLength) {
@@ -380,9 +405,13 @@ export async function createRecipe(formData: FormData) {
 
   const title = (formData.get("title") as string)?.trim()
   const description = (formData.get("description") as string)?.trim() || null
-  const sourceType = (formData.get("sourceType") as string) || "APP"
+  const sourceTypeInput = (formData.get("sourceType") as string) || "APP"
+  const sourceType = ALLOWED_RECIPE_SOURCE_TYPES.has(sourceTypeInput)
+    ? sourceTypeInput
+    : "APP"
   const sourceText = (formData.get("sourceText") as string)?.trim() || null
-  const url = (formData.get("url") as string)?.trim() || null
+  const rawUrl = (formData.get("url") as string)?.trim() || null
+  const url = sourceType === "LINK" ? sanitizeRecipeUrl(rawUrl) : null
 
   if (!title) throw new Error("Titel fehlt")
   if (sourceType === "BOOK" && !sourceText) throw new Error("Bitte Buch oder Seitenangabe angeben")
@@ -416,9 +445,13 @@ export async function updateRecipe(recipeId: string, formData: FormData) {
 
   const title = (formData.get("title") as string)?.trim()
   const description = (formData.get("description") as string)?.trim() || null
-  const sourceType = (formData.get("sourceType") as string) || "APP"
+  const sourceTypeInput = (formData.get("sourceType") as string) || "APP"
+  const sourceType = ALLOWED_RECIPE_SOURCE_TYPES.has(sourceTypeInput)
+    ? sourceTypeInput
+    : "APP"
   const sourceText = (formData.get("sourceText") as string)?.trim() || null
-  const url = (formData.get("url") as string)?.trim() || null
+  const rawUrl = (formData.get("url") as string)?.trim() || null
+  const url = sourceType === "LINK" ? sanitizeRecipeUrl(rawUrl) : null
 
   if (!title) throw new Error("Titel fehlt")
   if (sourceType === "BOOK" && !sourceText) throw new Error("Bitte Buch oder Seitenangabe angeben")

@@ -63,6 +63,7 @@ export default function MealPlanCard({ dateStr, mealPlan, recipes, compact = fal
                 <Link
                   href={mealPlan.recipe.url}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-block text-sm text-blue-600 hover:text-blue-700 mt-2"
                 >
                   Rezept öffnen
