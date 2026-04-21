@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { clearMealPlan, setMealPlan } from "@/app/(app)/actions"
+import RecipePicker from "@/components/RecipePicker"
 
 type Recipe = {
   id: string
@@ -82,20 +83,7 @@ export default function MealWeekGrid({ days, recipes, mealPlans, weekOffset }: P
 
               <form action={setMealPlan} className="space-y-2">
                 <input type="hidden" name="date" value={dateStr} />
-                <select
-                  name="recipeId"
-                  defaultValue={meal?.recipe.id ?? ""}
-                  className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-300"
-                >
-                  <option value="" disabled>
-                    Rezept waehlen
-                  </option>
-                  {recipes.map((recipe) => (
-                    <option key={recipe.id} value={recipe.id}>
-                      {recipe.title}
-                    </option>
-                  ))}
-                </select>
+                <RecipePicker recipes={recipes} defaultRecipeId={meal?.recipe.id} compact />
                 <button
                   type="submit"
                   className="w-full rounded-lg bg-rose-500 text-white py-2 text-sm font-medium hover:bg-rose-600 transition-colors"

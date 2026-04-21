@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { clearMealPlan, setMealPlan } from "@/app/(app)/actions"
+import RecipePicker from "@/components/RecipePicker"
 
 type RecipeOption = {
   id: string
@@ -80,20 +81,7 @@ export default function MealPlanCard({ dateStr, mealPlan, recipes, compact = fal
         <div className="mt-3 space-y-2">
           <form action={setMealPlan} className="flex gap-2">
             <input type="hidden" name="date" value={dateStr} />
-            <select
-              name="recipeId"
-              defaultValue={mealPlan?.recipe.id ?? ""}
-              className="flex-1 border border-rose-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-300"
-            >
-              <option value="" disabled>
-                Rezept wählen
-              </option>
-              {recipes.map((recipe) => (
-                <option key={recipe.id} value={recipe.id}>
-                  {recipe.title}
-                </option>
-              ))}
-            </select>
+            <RecipePicker recipes={recipes} defaultRecipeId={mealPlan?.recipe.id} />
             <button
               type="submit"
               className="px-3 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors"
