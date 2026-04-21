@@ -15,7 +15,7 @@ export default async function SettingsPage() {
           Angemeldet als <span className="font-semibold text-gray-800">{session.user.name}</span>
         </p>
 
-        <h2 className="font-semibold mb-3">PIN ändern</h2>
+        <h2 className="font-semibold mb-3">Passwort ändern</h2>
         <ChangePinForm />
       </div>
 

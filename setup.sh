@@ -71,11 +71,11 @@ prompt_secret() {
 }
 
 ADMIN_USERNAME="${SEED_ADMIN_USERNAME:-}"
-ADMIN_PIN="${SEED_ADMIN_PIN:-}"
+ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD:-${SEED_ADMIN_PIN:-}}"
 
-PIN_MIN_LENGTH=$(get_env_var "AUTH_PIN_MIN_LENGTH" "6")
-if ! [[ "$PIN_MIN_LENGTH" =~ ^[0-9]+$ ]] || [ "$PIN_MIN_LENGTH" -lt 4 ]; then
-  PIN_MIN_LENGTH=6
+PASSWORD_MIN_LENGTH=$(get_env_var "AUTH_PASSWORD_MIN_LENGTH" "$(get_env_var "AUTH_PIN_MIN_LENGTH" "6")")
+if ! [[ "$PASSWORD_MIN_LENGTH" =~ ^[0-9]+$ ]] || [ "$PASSWORD_MIN_LENGTH" -lt 4 ]; then
+  PASSWORD_MIN_LENGTH=6
 fi
 
 ensure_env_var "NEXT_PUBLIC_APP_NAME" '"WeeklyPlaner"'
@@ -91,8 +91,7 @@ ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT" '"#3b82f6"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT_SOFT" '"#93c5fd"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL" '"#ffffff"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL_SOFT" '"#bfdbfe"'
-ensure_env_var "AUTH_PIN_MIN_LENGTH" "$PIN_MIN_LENGTH"
-ensure_env_var "AUTH_PIN_NUMERIC_ONLY" "true"
+ensure_env_var "AUTH_PASSWORD_MIN_LENGTH" "$PASSWORD_MIN_LENGTH"
 ensure_env_var "AUTH_RATE_LIMIT_ENABLED" "true"
 ensure_env_var "AUTH_RATE_LIMIT_WINDOW_SECONDS" "300"
 ensure_env_var "AUTH_RATE_LIMIT_MAX_ATTEMPTS" "5"
@@ -111,7 +110,7 @@ if [ -t 0 ]; then
   prompt_env_var "NEXT_PUBLIC_APP_BACKGROUND_COLOR" "Hintergrundfarbe" "#f9fafb"
   prompt_env_var "NEXT_PUBLIC_APP_START_URL" "Start-URL" "/day"
   prompt_env_var "NEXT_PUBLIC_APP_ICON_TEXT" "Icon-Text (1-2 Zeichen)" "W"
-  prompt_env_var "AUTH_PIN_MIN_LENGTH" "Mindestlaenge fuer PIN" "$PIN_MIN_LENGTH"
+  prompt_env_var "AUTH_PASSWORD_MIN_LENGTH" "Mindestlaenge fuer Passwort" "$PASSWORD_MIN_LENGTH"
 
   echo ""
   printf "Erweiterte Icon-Farben konfigurieren? [j/N]: "
@@ -137,20 +136,15 @@ if [ -t 0 ]; then
   fi
 
   while true; do
-    ADMIN_PIN=$(prompt_secret "Admin-PIN (mindestens ${PIN_MIN_LENGTH} Zeichen)")
-    if [ ${#ADMIN_PIN} -lt "$PIN_MIN_LENGTH" ]; then
-      echo "PIN ist zu kurz. Bitte mindestens ${PIN_MIN_LENGTH} Zeichen verwenden."
+    ADMIN_PASSWORD=$(prompt_secret "Admin-Passwort (mindestens ${PASSWORD_MIN_LENGTH} Zeichen)")
+    if [ ${#ADMIN_PASSWORD} -lt "$PASSWORD_MIN_LENGTH" ]; then
+      echo "Passwort ist zu kurz. Bitte mindestens ${PASSWORD_MIN_LENGTH} Zeichen verwenden."
       continue
     fi
 
-    if ! [[ "$ADMIN_PIN" =~ ^[0-9]+$ ]]; then
-      echo "PIN darf nur Ziffern enthalten."
-      continue
-    fi
-
-    ADMIN_PIN_CONFIRM=$(prompt_secret "Admin-PIN wiederholen")
-    if [ "$ADMIN_PIN" != "$ADMIN_PIN_CONFIRM" ]; then
-      echo "PINs stimmen nicht überein. Bitte erneut versuchen."
+    ADMIN_PASSWORD_CONFIRM=$(prompt_secret "Admin-Passwort wiederholen")
+    if [ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]; then
+      echo "Passwörter stimmen nicht überein. Bitte erneut versuchen."
       continue
     fi
 
@@ -177,7 +171,7 @@ npx prisma db push
 
 echo ""
 echo "🌱  Datenbank wird befüllt..."
-SEED_ADMIN_USERNAME="$ADMIN_USERNAME" SEED_ADMIN_PIN="$ADMIN_PIN" npx tsx scripts/seed.ts
+SEED_ADMIN_USERNAME="$ADMIN_USERNAME" SEED_ADMIN_PASSWORD="$ADMIN_PASSWORD" npx tsx scripts/seed.ts
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -12,7 +12,7 @@ import {
   shouldTrustProxyHeaders,
   registerAuthFailure,
 } from "@/lib/auth-rate-limit"
-import { isValidPinFormat } from "@/lib/security-config"
+import { isValidPasswordFormat } from "@/lib/security-config"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365
 const SESSION_UPDATE_AGE = 60 * 60 * 24
@@ -63,13 +63,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       credentials: {
         username: { label: "Benutzername" },
-        pin: { label: "PIN", type: "password" },
+        password: { label: "Passwort", type: "password" },
       },
       async authorize(credentials, request) {
         const username = (credentials?.username as string | undefined)?.trim()
-        const pin = (credentials?.pin as string | undefined)?.trim()
-        if (!username || !pin) return null
-        if (!isValidPinFormat(pin)) return null
+        const legacyPin = (credentials as Record<string, unknown> | undefined)?.pin as string | undefined
+        const password = (credentials?.password as string | undefined) ?? legacyPin
+        if (!username || !password) return null
+        if (!isValidPasswordFormat(password)) return null
 
         const rateLimitEnabled = isAuthRateLimitEnabled()
         const clientIp = getClientIp(request)
@@ -85,7 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: {
             id: true,
             username: true,
-            pinHash: true,
+            passwordHash: true,
             role: true,
             sessionVersion: true,
           },
@@ -95,7 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        const valid = await bcrypt.compare(pin, user.pinHash)
+        const valid = await bcrypt.compare(password, user.passwordHash)
         if (!valid) {
           if (rateLimitEnabled) await registerAuthFailure(key)
           return null

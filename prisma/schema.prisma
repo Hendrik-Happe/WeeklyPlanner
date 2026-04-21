@@ -15,7 +15,7 @@ enum Role {
 model User {
   id        String   @id @default(cuid())
   username  String   @unique
-  pinHash   String
+  passwordHash String @map("pinHash")
   role      Role     @default(USER)
   sessionVersion Int  @default(0)
   shoppingView String @default("LIST") // LIST | GRID

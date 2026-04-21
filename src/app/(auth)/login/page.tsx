@@ -16,12 +16,12 @@ export default function LoginPage() {
     const fd = new FormData(e.currentTarget)
     const result = await signIn("credentials", {
       username: fd.get("username"),
-      pin: fd.get("pin"),
+      password: fd.get("password"),
       redirect: false,
     })
     setLoading(false)
     if (result?.error) {
-      setError("Benutzername oder PIN falsch.")
+      setError("Benutzername oder Passwort falsch.")
     } else {
       router.push("/day")
     }
@@ -44,11 +44,10 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">PIN</label>
+            <label className="block text-sm font-medium mb-1">Passwort</label>
             <input
-              name="pin"
+              name="password"
               type="password"
-              inputMode="numeric"
               required
               autoComplete="current-password"
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"

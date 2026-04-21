@@ -24,7 +24,7 @@ Familienbasierte Wochenplaner-App für den Raspberry Pi. Verwaltet Aufgaben, Mah
 | Framework   | **Next.js 15** (App Router) + **TypeScript 5**     |
 | Styling     | **Tailwind CSS v4** – Mobile-first                  |
 | Datenbank   | **SQLite** via **Prisma ORM 6**                     |
-| Auth        | **NextAuth.js v5** – Credentials Provider (Username + PIN) |
+| Auth        | **NextAuth.js v5** – Credentials Provider (Username + Passwort) |
 | PWA         | **next-pwa** – installierbar auf Smartphones        |
 | Deployment  | `next start` direkt auf Raspberry Pi               |
 
@@ -78,7 +78,7 @@ src/
       tasks/[id]/edit/    # Aufgabe bearbeiten
       meals/              # Mahlzeitenplan
       shopping/           # Einkaufslisten
-      settings/           # Nutzereinstellungen (PIN ändern)
+      settings/           # Nutzereinstellungen (Passwort ändern)
       admin/              # Nutzerverwaltung (nur ADMIN)
       actions.ts          # Alle Server Actions (Datenmutationen)
     api/auth/[...nextauth]/  # NextAuth Route Handler
@@ -86,7 +86,7 @@ src/
   lib/
     auth.ts               # NextAuth-Konfiguration + getCurrentSession()
     auth-rate-limit.ts    # Login-Brute-Force-Schutz (DB-backed)
-    security-config.ts    # PIN-Policy (Mindestlänge, Format)
+    security-config.ts    # Passwort-Policy (Mindestlänge, Format)
     prisma.ts             # Prisma Client Singleton
     tasks.ts              # Aufgaben-Logik + Wiederholungsauflösung
     meals.ts              # Mahlzeiten-Datenbankzugriffe
@@ -121,9 +121,9 @@ setup.sh                  # Interaktives Ersteinrichtungs-Skript
 |------------------|----------|---------------------------------------------------|
 | `id`             | String   | CUID                                              |
 | `username`       | String   | Eindeutig                                         |
-| `pinHash`        | String   | bcrypt-Hash (cost 12)                             |
+| `passwordHash`   | String   | bcrypt-Hash (cost 12), gemappt auf bestehende Spalte `pinHash` |
 | `role`           | Enum     | `USER` \| `ADMIN`                                 |
-| `sessionVersion` | Int      | Erhöht bei PIN-Änderung → alle Sessions ungültig  |
+| `sessionVersion` | Int      | Erhöht bei Passwort-Änderung → alle Sessions ungültig |
 | `shoppingView`   | String   | Bevorzugte Ansicht: `LIST` \| `GRID`              |
 
 ### Task
@@ -176,15 +176,14 @@ DB-backed Brute-Force-Tracking pro `username|ip`-Schlüssel.
 - `getCurrentSession()` validiert bei jedem Request:
   - Existiert der Nutzer noch in der DB?
   - Stimmt `sessionVersion` im Token mit der DB überein?
-- PIN-Änderung erhöht `sessionVersion` → alle bestehenden Sessions werden sofort ungültig
+- Passwort-Änderung erhöht `sessionVersion` → alle bestehenden Sessions werden sofort ungültig
 
-### PIN-Policy
+### Passwort-Policy
 Gesteuert über Umgebungsvariablen:
 
 | Variable              | Standard | Beschreibung                     |
 |-----------------------|----------|----------------------------------|
-| `AUTH_PIN_MIN_LENGTH` | `6`      | Mindestlänge (≥ 4 erzwungen)     |
-| `AUTH_PIN_NUMERIC_ONLY` | `true` | Nur Ziffern erlaubt             |
+| `AUTH_PASSWORD_MIN_LENGTH` | `6` | Mindestlänge (≥ 4 erzwungen)     |
 
 ### Login-Rate-Limiting
 Persistiert in der Datenbank (Tabelle `AuthRateLimit`).
@@ -221,9 +220,8 @@ AUTH_RATE_LIMIT_MAX_ATTEMPTS=5
 AUTH_RATE_LIMIT_BLOCK_SECONDS=900
 AUTH_TRUST_PROXY_HEADERS=false
 
-# PIN-Policy
-AUTH_PIN_MIN_LENGTH=6
-AUTH_PIN_NUMERIC_ONLY=true
+# Passwort-Policy
+AUTH_PASSWORD_MIN_LENGTH=6
 
 # Branding / PWA
 NEXT_PUBLIC_APP_NAME="WeeklyPlaner"
@@ -253,14 +251,14 @@ Das Skript:
 1. Prüft `node`, `npm`, `openssl`
 2. Erstellt `.env` aus `.env.example` (überschreibt nicht)
 3. Generiert `AUTH_SECRET` mit `openssl rand -base64 32`
-4. Fragt nach Admin-Nutzername und PIN
+4. Fragt nach Admin-Nutzername und Passwort
 5. Führt `npx prisma generate && npx prisma db push` aus
 6. Legt den Admin-Nutzer via `scripts/seed.ts` an
 
 ### Nicht-interaktiv (CI / erneutes Seeden)
 
 ```bash
-SEED_ADMIN_USERNAME="admin" SEED_ADMIN_PIN="123456" npm run setup
+SEED_ADMIN_USERNAME="admin" SEED_ADMIN_PASSWORD="meinpasswort" npm run setup
 ```
 
 ### Produktion starten
@@ -300,5 +298,5 @@ npx prisma studio         # Datenbank-Browser (GUI)
 
 | Rolle   | Berechtigungen                                                                          |
 |---------|-----------------------------------------------------------------------------------------|
-| `USER`  | Eigene Aufgaben erstellen, Aufgaben erledigen/snoosen, PIN ändern                       |
-| `ADMIN` | Zusätzlich: Aufgaben anderen zuweisen, neue Nutzer anlegen, PINs zurücksetzen (`/admin`) |
+| `USER`  | Eigene Aufgaben erstellen, Aufgaben erledigen/snoosen, Passwort ändern                    |
+| `ADMIN` | Zusätzlich: Aufgaben anderen zuweisen, neue Nutzer anlegen, Passwörter zurücksetzen (`/admin`) |

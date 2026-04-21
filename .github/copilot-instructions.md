@@ -9,7 +9,7 @@ Familienbasierte Wochenplaner-App. Läuft auf einem Raspberry Pi, primär Mobile
 | Framework | **Next.js 15** (App Router) + **TypeScript** |
 | Styling | **Tailwind CSS v4** – Mobile-first |
 | Datenbank | **SQLite** via **Prisma ORM** |
-| Auth | **NextAuth.js v5** – Credentials Provider (Username + PIN) |
+| Auth | **NextAuth.js v5** – Credentials Provider (Username + Passwort) |
 | PWA | **next-pwa** – installierbar auf Smartphones |
 | Deployment | `next start` direkt auf Raspberry Pi |
 
@@ -38,7 +38,7 @@ prisma/
 
 ## Datenmodell (Kern)
 
-- **User**: id, username, pinHash, role (`USER` | `ADMIN`)
+- **User**: id, username, passwordHash, role (`USER` | `ADMIN`)
 - **Task**: id, title, description, createdBy, assignedTo (nullable)
 - **RecurrenceRule**: taskId, type (`ONCE`|`DAILY`|`WEEKLY`|`MONTHLY`), interval, weekdays (JSON), monthRange (`{from, to}` für April–September etc.), validFrom, validUntil
 - **TaskCompletion**: taskId, userId, date, status (`DONE`|`SNOOZED`), snoozedTo
@@ -48,7 +48,7 @@ prisma/
 - **Server Components by default** – `"use client"` nur wenn nötig (Interaktivität, Hooks)
 - **Server Actions** für Formulare (Aufgabe erstellen, als erledigt markieren etc.)
 - Datenbankzugriff **nur in Server Components oder Route Handlers** – niemals im Client
-- PINs werden mit **bcrypt** gehasht (niemals Klartext speichern)
+- Passwörter werden mit **bcrypt** gehasht (niemals Klartext speichern)
 - Datumslogik immer in der **Europe/Berlin** Zeitzone (Raspberry Pi Systemzeit)
 - Wiederholungsregeln werden **zur Laufzeit aufgelöst** – keine vorab generierten Datensätze pro Tag
 

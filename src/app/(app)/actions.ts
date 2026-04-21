@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
-import { getPinRuleText, isValidPinFormat } from "@/lib/security-config"
+import { getPasswordRuleText, isValidPasswordFormat } from "@/lib/security-config"
 
 async function requireSession() {
   const session = await getCurrentSession()
@@ -203,16 +203,16 @@ export async function createUser(formData: FormData) {
   if (session?.user.role !== "ADMIN") throw new Error("Kein Zugriff")
 
   const username = (formData.get("username") as string).trim()
-  const pin = formData.get("pin") as string
+  const password = formData.get("password") as string
   const role = parseRole(String(formData.get("role") ?? ""))
 
-  if (!username || !pin || !isValidPinFormat(pin)) {
-    throw new Error(getPinRuleText())
+  if (!username || !password || !isValidPasswordFormat(password)) {
+    throw new Error(getPasswordRuleText())
   }
 
-  const pinHash = await bcrypt.hash(pin, 12)
+  const passwordHash = await bcrypt.hash(password, 12)
   await prisma.user.create({
-    data: { username, pinHash, role },
+    data: { username, passwordHash, role },
   })
 
   revalidatePath("/admin")
@@ -283,29 +283,29 @@ export async function unclaimTask(formData: FormData) {
   revalidatePath("/my-tasks")
 }
 
-export async function changePin(formData: FormData) {
+export async function changePassword(formData: FormData) {
   const session = await requireSession()
 
-  const currentPin = formData.get("currentPin") as string
-  const newPin = formData.get("newPin") as string
-  const confirmPin = formData.get("confirmPin") as string
+  const currentPassword = formData.get("currentPassword") as string
+  const newPassword = formData.get("newPassword") as string
+  const confirmPassword = formData.get("confirmPassword") as string
 
-  if (!newPin || !isValidPinFormat(newPin)) {
-    throw new Error(getPinRuleText())
+  if (!newPassword || !isValidPasswordFormat(newPassword)) {
+    throw new Error(getPasswordRuleText())
   }
-  if (newPin !== confirmPin) throw new Error("PINs stimmen nicht überein")
+  if (newPassword !== confirmPassword) throw new Error("Passwörter stimmen nicht überein")
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })
   if (!user) throw new Error("Nutzer nicht gefunden")
 
-  const valid = await bcrypt.compare(currentPin, user.pinHash)
-  if (!valid) throw new Error("Aktueller PIN ist falsch")
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+  if (!valid) throw new Error("Aktuelles Passwort ist falsch")
 
-  const pinHash = await bcrypt.hash(newPin, 12)
+  const passwordHash = await bcrypt.hash(newPassword, 12)
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      pinHash,
+      passwordHash,
       sessionVersion: { increment: 1 },
     },
   })
@@ -374,22 +374,22 @@ export async function updateTask(taskId: string, formData: FormData) {
   revalidatePath("/my-tasks")
 }
 
-export async function adminResetPin(formData: FormData) {
+export async function adminResetPassword(formData: FormData) {
   const session = await getCurrentSession()
   if (session?.user.role !== "ADMIN") throw new Error("Kein Zugriff")
 
   const userId = formData.get("userId") as string
-  const newPin = formData.get("newPin") as string
+  const newPassword = formData.get("newPassword") as string
 
-  if (!newPin || !isValidPinFormat(newPin)) {
-    throw new Error(getPinRuleText())
+  if (!newPassword || !isValidPasswordFormat(newPassword)) {
+    throw new Error(getPasswordRuleText())
   }
 
-  const pinHash = await bcrypt.hash(newPin, 12)
+  const passwordHash = await bcrypt.hash(newPassword, 12)
   await prisma.user.update({
     where: { id: userId },
     data: {
-      pinHash,
+      passwordHash,
       sessionVersion: { increment: 1 },
     },
   })
