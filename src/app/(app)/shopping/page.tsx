@@ -1,9 +1,18 @@
-import { addShoppingItem, removeShoppingItem, restoreShoppingItem, updateShoppingItemTags } from "@/app/(app)/actions"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { addShoppingItem, removeShoppingItem, restoreShoppingItem, setShoppingView, updateShoppingItemTags } from "@/app/(app)/actions"
 import ShoppingAddOverlay from "@/components/ShoppingAddOverlay"
 import ShoppingTagEditor from "@/components/ShoppingTagEditor"
 import { getRemovedShoppingItems, getShoppingItems, getShoppingSuggestions } from "@/lib/shopping"
 
 export default async function ShoppingPage() {
+  const session = await auth()
+  const user = await prisma.user.findUnique({
+    where: { id: session!.user.id },
+    select: { shoppingView: true },
+  })
+  const isGridView = user?.shoppingView === "GRID"
+
   const [items, removedItems, suggestions] = await Promise.all([
     getShoppingItems(),
     getRemovedShoppingItems(),
@@ -15,6 +24,30 @@ export default async function ShoppingPage() {
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <h1 className="text-xl font-bold mb-1">Einkaufsliste</h1>
         <p className="text-sm text-gray-500">Items mit optionalen Tags wie Menge, Farbe oder Qualität.</p>
+        <div className="mt-3 inline-flex rounded-lg border border-gray-200 overflow-hidden">
+          <form action={setShoppingView}>
+            <input type="hidden" name="view" value="LIST" />
+            <button
+              type="submit"
+              className={`px-3 py-1.5 text-sm font-medium ${
+                !isGridView ? "bg-blue-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Liste
+            </button>
+          </form>
+          <form action={setShoppingView}>
+            <input type="hidden" name="view" value="GRID" />
+            <button
+              type="submit"
+              className={`px-3 py-1.5 text-sm font-medium ${
+                isGridView ? "bg-blue-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Kacheln
+            </button>
+          </form>
+        </div>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
@@ -22,7 +55,7 @@ export default async function ShoppingPage() {
         {items.length === 0 ? (
           <p className="text-sm text-gray-400">Noch keine Items in der Liste.</p>
         ) : (
-          <div className="space-y-2">
+          <div className={isGridView ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}>
             {items.map((item) => (
               <div key={item.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 flex items-start justify-between gap-3">
                 <div>
@@ -64,7 +97,7 @@ export default async function ShoppingPage() {
         {removedItems.length === 0 ? (
           <p className="text-sm text-gray-400">Keine entfernten Items.</p>
         ) : (
-          <div className="space-y-2">
+          <div className={isGridView ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}>
             {removedItems.map((item) => (
               <div key={item.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 flex items-start justify-between gap-3">
                 <div>

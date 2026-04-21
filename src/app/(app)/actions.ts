@@ -601,3 +601,18 @@ export async function restoreShoppingItem(formData: FormData) {
 
   revalidatePath("/shopping")
 }
+
+export async function setShoppingView(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const view = formData.get("view") as string
+  if (view !== "LIST" && view !== "GRID") throw new Error("Ungültige Ansicht")
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { shoppingView: view },
+  })
+
+  revalidatePath("/shopping")
+}

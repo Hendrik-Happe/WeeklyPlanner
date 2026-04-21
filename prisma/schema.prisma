@@ -12,6 +12,7 @@ model User {
   username  String   @unique
   pinHash   String
   role      String   @default("USER") // USER | ADMIN
+  shoppingView String @default("LIST") // LIST | GRID
   createdAt DateTime @default(now())
 
   createdTasks       Task[]           @relation("CreatedBy")
