@@ -3,9 +3,26 @@ import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
+const SESSION_MAX_AGE = 60 * 60 * 24 * 365
+const SESSION_UPDATE_AGE = 60 * 60 * 24
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: SESSION_MAX_AGE,
+    updateAge: SESSION_UPDATE_AGE,
+  },
+  jwt: {
+    maxAge: SESSION_MAX_AGE,
+  },
   pages: { signIn: "/login" },
+  logger: {
+    error(error, ...message) {
+      // Invalid credentials are expected user input and should not flood server logs.
+      if (error instanceof Error && error.name === "CredentialsSignin") return
+      console.error("[auth][error]", error, ...message)
+    },
+  },
   providers: [
     Credentials({
       credentials: {
@@ -13,8 +30,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         pin: { label: "PIN", type: "password" },
       },
       async authorize(credentials) {
-        const username = credentials?.username as string
-        const pin = credentials?.pin as string
+        const username = (credentials?.username as string | undefined)?.trim()
+        const pin = (credentials?.pin as string | undefined)?.trim()
         if (!username || !pin) return null
 
         const user = await prisma.user.findUnique({ where: { username } })
@@ -44,3 +61,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 })
+
+export async function getCurrentSession() {
+  const session = await auth()
+  if (!session?.user?.id) return null
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, username: true, role: true },
+  })
+
+  if (!user) return null
+
+  return {
+    ...session,
+    user: {
+      ...session.user,
+      id: user.id,
+      name: user.username,
+      role: user.role,
+    },
+  }
+}

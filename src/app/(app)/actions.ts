@@ -1,14 +1,19 @@
 "use server"
 
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 
-export async function markDone(formData: FormData) {
-  const session = await auth()
+async function requireSession() {
+  const session = await getCurrentSession()
   if (!session) throw new Error("Nicht angemeldet")
+  return session
+}
+
+export async function markDone(formData: FormData) {
+  const session = await requireSession()
 
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
@@ -25,8 +30,7 @@ export async function markDone(formData: FormData) {
 }
 
 export async function snoozeTask(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
@@ -89,8 +93,7 @@ export async function snoozeTask(formData: FormData) {
 }
 
 export async function createTask(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const title = (formData.get("title") as string).trim()
   const description = (formData.get("description") as string)?.trim() || null
@@ -135,7 +138,7 @@ export async function createTask(formData: FormData) {
 }
 
 export async function createUser(formData: FormData) {
-  const session = await auth()
+  const session = await getCurrentSession()
   if (session?.user.role !== "ADMIN") throw new Error("Kein Zugriff")
 
   const username = (formData.get("username") as string).trim()
@@ -155,8 +158,7 @@ export async function createUser(formData: FormData) {
 }
 
 export async function claimTask(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
@@ -196,8 +198,7 @@ export async function claimTask(formData: FormData) {
 }
 
 export async function unclaimTask(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
@@ -230,8 +231,7 @@ export async function unclaimTask(formData: FormData) {
 }
 
 export async function changePin(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const currentPin = formData.get("currentPin") as string
   const newPin = formData.get("newPin") as string
@@ -253,8 +253,7 @@ export async function changePin(formData: FormData) {
 }
 
 export async function updateTask(taskId: string, formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const task = await prisma.task.findUnique({ where: { id: taskId } })
   if (!task) throw new Error("Aufgabe nicht gefunden")
@@ -315,7 +314,7 @@ export async function updateTask(taskId: string, formData: FormData) {
 }
 
 export async function adminResetPin(formData: FormData) {
-  const session = await auth()
+  const session = await getCurrentSession()
   if (session?.user.role !== "ADMIN") throw new Error("Kein Zugriff")
 
   const userId = formData.get("userId") as string
@@ -330,8 +329,7 @@ export async function adminResetPin(formData: FormData) {
 }
 
 export async function createRecipe(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const title = (formData.get("title") as string)?.trim()
   const description = (formData.get("description") as string)?.trim() || null
@@ -360,8 +358,7 @@ export async function createRecipe(formData: FormData) {
 }
 
 export async function updateRecipe(recipeId: string, formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const recipe = await prisma.recipe.findUnique({ where: { id: recipeId } })
   if (!recipe) throw new Error("Rezept nicht gefunden")
@@ -397,8 +394,7 @@ export async function updateRecipe(recipeId: string, formData: FormData) {
 }
 
 export async function deleteRecipe(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const recipeId = formData.get("recipeId") as string
   const recipe = await prisma.recipe.findUnique({ where: { id: recipeId } })
@@ -419,8 +415,7 @@ export async function deleteRecipe(formData: FormData) {
 }
 
 export async function setMealPlan(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const date = formData.get("date") as string
   const recipeId = formData.get("recipeId") as string
@@ -439,8 +434,7 @@ export async function setMealPlan(formData: FormData) {
 }
 
 export async function clearMealPlan(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const date = formData.get("date") as string
   if (!date) throw new Error("Ungültige Eingabe")
@@ -513,8 +507,7 @@ function collectTags(formData: FormData): string[] {
 }
 
 export async function addShoppingItem(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const listId = (formData.get("listId") as string)?.trim()
   if (!listId) throw new Error("Liste fehlt")
@@ -568,8 +561,7 @@ export async function addShoppingItem(formData: FormData) {
 }
 
 export async function removeShoppingItem(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const itemId = formData.get("itemId") as string
   if (!itemId) throw new Error("Ungültige Eingabe")
@@ -585,8 +577,7 @@ export async function removeShoppingItem(formData: FormData) {
 }
 
 export async function updateShoppingItemTags(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const itemId = formData.get("itemId") as string
   if (!itemId) throw new Error("Ungültige Eingabe")
@@ -632,8 +623,7 @@ export async function updateShoppingItemTags(formData: FormData) {
 }
 
 export async function restoreShoppingItem(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const itemId = formData.get("itemId") as string
   if (!itemId) throw new Error("Ungültige Eingabe")
@@ -649,8 +639,7 @@ export async function restoreShoppingItem(formData: FormData) {
 }
 
 export async function setShoppingView(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const view = formData.get("view") as string
   if (view !== "LIST" && view !== "GRID") throw new Error("Ungültige Ansicht")
@@ -664,8 +653,7 @@ export async function setShoppingView(formData: FormData) {
 }
 
 export async function createShoppingList(formData: FormData) {
-  const session = await auth()
-  if (!session) throw new Error("Nicht angemeldet")
+  const session = await requireSession()
 
   const name = (formData.get("name") as string)?.trim()
   if (!name) throw new Error("Name fehlt")
