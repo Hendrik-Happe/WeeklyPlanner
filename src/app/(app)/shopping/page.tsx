@@ -61,10 +61,18 @@ export default async function ShoppingPage() {
         {items.length === 0 ? (
           <p className="text-sm text-gray-400">Noch keine Items in der Liste.</p>
         ) : (
-          <div className={isGridView ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}>
+          <div className={isGridView ? "grid grid-cols-2 sm:grid-cols-3 gap-2" : "space-y-2"}>
             {items.map((item) => (
-              <div key={item.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 flex items-start justify-between gap-3">
-                <div>
+              <div key={item.id} className="relative rounded-xl border border-gray-100 px-3 py-3 bg-gray-50">
+                <form action={removeShoppingItem} className="absolute inset-0">
+                  <input type="hidden" name="itemId" value={item.id} />
+                  <button
+                    type="submit"
+                    aria-label={`${item.name} entfernen`}
+                    className="w-full h-full cursor-pointer"
+                  />
+                </form>
+                <div className="relative pointer-events-none">
                   <p className="font-medium text-gray-900">{item.name}</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {item.tags.map((tag) => (
@@ -76,6 +84,8 @@ export default async function ShoppingPage() {
                       <span className="text-xs text-gray-400">Keine Tags</span>
                     )}
                   </div>
+                </div>
+                <div className="relative">
                   <ShoppingTagEditor
                     itemId={item.id}
                     existingTags={item.tags.map((tag) => tag.value)}
@@ -83,15 +93,6 @@ export default async function ShoppingPage() {
                     action={updateShoppingItemTags}
                   />
                 </div>
-                <form action={removeShoppingItem}>
-                  <input type="hidden" name="itemId" value={item.id} />
-                  <button
-                    type="submit"
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Entfernen
-                  </button>
-                </form>
               </div>
             ))}
           </div>
@@ -103,32 +104,24 @@ export default async function ShoppingPage() {
         {removedItems.length === 0 ? (
           <p className="text-sm text-gray-400">Keine entfernten Items.</p>
         ) : (
-          <div className={isGridView ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}>
+          <div className={isGridView ? "grid grid-cols-2 sm:grid-cols-3 gap-2" : "space-y-2"}>
             {removedItems.map((item) => (
-              <div key={item.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm text-gray-600">{item.name}</p>
+              <form key={item.id} action={restoreShoppingItem}>
+                <input type="hidden" name="itemId" value={item.id} />
+                <button
+                  type="submit"
+                  className="w-full text-left rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 opacity-60 cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <p className="text-sm text-gray-600 line-through">{item.name}</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {item.tags.map((tag) => (
-                      <span key={tag.id} className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5 border border-gray-200">
+                      <span key={tag.id} className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 border border-gray-200">
                         {tag.value}
                       </span>
                     ))}
-                    {item.tags.length === 0 && (
-                      <span className="text-xs text-gray-400">Keine Tags</span>
-                    )}
                   </div>
-                </div>
-                <form action={restoreShoppingItem}>
-                  <input type="hidden" name="itemId" value={item.id} />
-                  <button
-                    type="submit"
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    Erneut hinzufügen
-                  </button>
-                </form>
-              </div>
+                </button>
+              </form>
             ))}
           </div>
         )}
