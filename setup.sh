@@ -57,6 +57,22 @@ prompt_env_var() {
   set_env_var "$KEY" "\"$INPUT\""
 }
 
+prompt_secret() {
+  LABEL="$1"
+  VALUE=""
+
+  while [ -z "$VALUE" ]; do
+    printf "%s: " "$LABEL"
+    read -r -s VALUE
+    echo ""
+  done
+
+  echo "$VALUE"
+}
+
+ADMIN_USERNAME="${SEED_ADMIN_USERNAME:-}"
+ADMIN_PIN="${SEED_ADMIN_PIN:-}"
+
 ensure_env_var "NEXT_PUBLIC_APP_NAME" '"WeeklyPlaner"'
 ensure_env_var "NEXT_PUBLIC_APP_SHORT_NAME" '"WeeklyPlaner"'
 ensure_env_var "NEXT_PUBLIC_APP_DESCRIPTION" '"Familien-Wochenplaner"'
@@ -96,6 +112,32 @@ if [ -t 0 ]; then
     prompt_env_var "NEXT_PUBLIC_APP_ICON_PANEL" "Icon Panel-Farbe" "#ffffff"
     prompt_env_var "NEXT_PUBLIC_APP_ICON_PANEL_SOFT" "Icon Panel-Farbe weich" "#bfdbfe"
   fi
+
+  echo ""
+  echo "👤  Initialen Admin anlegen"
+  printf "Admin-Benutzername [%s]: " "admin"
+  read -r INPUT_ADMIN_USERNAME
+  if [ -z "$INPUT_ADMIN_USERNAME" ]; then
+    ADMIN_USERNAME="admin"
+  else
+    ADMIN_USERNAME="$INPUT_ADMIN_USERNAME"
+  fi
+
+  while true; do
+    ADMIN_PIN=$(prompt_secret "Admin-PIN (mindestens 4 Zeichen)")
+    if [ ${#ADMIN_PIN} -lt 4 ]; then
+      echo "PIN ist zu kurz. Bitte mindestens 4 Zeichen verwenden."
+      continue
+    fi
+
+    ADMIN_PIN_CONFIRM=$(prompt_secret "Admin-PIN wiederholen")
+    if [ "$ADMIN_PIN" != "$ADMIN_PIN_CONFIRM" ]; then
+      echo "PINs stimmen nicht überein. Bitte erneut versuchen."
+      continue
+    fi
+
+    break
+  done
 fi
 
 # AUTH_SECRET generieren falls noch nicht vorhanden
@@ -117,7 +159,7 @@ npx prisma db push
 
 echo ""
 echo "🌱  Datenbank wird befüllt..."
-npx tsx scripts/seed.ts
+SEED_ADMIN_USERNAME="$ADMIN_USERNAME" SEED_ADMIN_PIN="$ADMIN_PIN" npx tsx scripts/seed.ts
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
