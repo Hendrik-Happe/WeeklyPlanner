@@ -456,6 +456,41 @@ function normalizeShoppingValue(value: string): string {
   return value.trim().toLowerCase()
 }
 
+async function assertShoppingListAccess(userId: string, listId: string) {
+  const list = await prisma.shoppingList.findFirst({
+    where: {
+      id: listId,
+      OR: [
+        { createdById: userId },
+        { isSharedWithAll: true },
+        { members: { some: { userId } } },
+      ],
+    },
+    select: { id: true },
+  })
+
+  if (!list) throw new Error("Keine Berechtigung für diese Liste")
+}
+
+async function assertShoppingItemAccess(userId: string, itemId: string) {
+  const item = await prisma.shoppingItem.findFirst({
+    where: {
+      id: itemId,
+      list: {
+        OR: [
+          { createdById: userId },
+          { isSharedWithAll: true },
+          { members: { some: { userId } } },
+        ],
+      },
+    },
+    select: { id: true, listId: true, nameNormalized: true },
+  })
+
+  if (!item) throw new Error("Item nicht gefunden oder keine Berechtigung")
+  return item
+}
+
 function collectTags(formData: FormData): string[] {
   const selected = formData
     .getAll("selectedTags")
@@ -481,6 +516,10 @@ export async function addShoppingItem(formData: FormData) {
   const session = await auth()
   if (!session) throw new Error("Nicht angemeldet")
 
+  const listId = (formData.get("listId") as string)?.trim()
+  if (!listId) throw new Error("Liste fehlt")
+  await assertShoppingListAccess(session.user.id, listId)
+
   const name = (formData.get("name") as string)?.trim()
   if (!name) throw new Error("Name fehlt")
 
@@ -492,6 +531,7 @@ export async function addShoppingItem(formData: FormData) {
       name,
       nameNormalized,
       createdById: session.user.id,
+      listId,
       tags: {
         create: tags.map((tag) => ({
           value: tag,
@@ -506,12 +546,14 @@ export async function addShoppingItem(formData: FormData) {
       tags.map((tag) =>
         prisma.shoppingTagHistory.upsert({
           where: {
-            itemNameNormalized_valueNormalized: {
+            listId_itemNameNormalized_valueNormalized: {
+              listId,
               itemNameNormalized: nameNormalized,
               valueNormalized: normalizeShoppingValue(tag),
             },
           },
           create: {
+            listId,
             itemNameNormalized: nameNormalized,
             value: tag,
             valueNormalized: normalizeShoppingValue(tag),
@@ -532,6 +574,8 @@ export async function removeShoppingItem(formData: FormData) {
   const itemId = formData.get("itemId") as string
   if (!itemId) throw new Error("Ungültige Eingabe")
 
+  await assertShoppingItemAccess(session.user.id, itemId)
+
   await prisma.shoppingItem.update({
     where: { id: itemId },
     data: { removedAt: new Date() },
@@ -547,11 +591,9 @@ export async function updateShoppingItemTags(formData: FormData) {
   const itemId = formData.get("itemId") as string
   if (!itemId) throw new Error("Ungültige Eingabe")
 
-  const item = await prisma.shoppingItem.findUnique({
-    where: { id: itemId },
-    select: { id: true, nameNormalized: true },
-  })
-  if (!item) throw new Error("Item nicht gefunden")
+  const item = await assertShoppingItemAccess(session.user.id, itemId)
+  if (!item.listId) throw new Error("Liste nicht gefunden")
+  const listId = item.listId
 
   const tags = collectTags(formData)
 
@@ -569,12 +611,14 @@ export async function updateShoppingItemTags(formData: FormData) {
     ...tags.map((tag) =>
       prisma.shoppingTagHistory.upsert({
         where: {
-          itemNameNormalized_valueNormalized: {
+          listId_itemNameNormalized_valueNormalized: {
+            listId,
             itemNameNormalized: item.nameNormalized,
             valueNormalized: normalizeShoppingValue(tag),
           },
         },
         create: {
+          listId,
           itemNameNormalized: item.nameNormalized,
           value: tag,
           valueNormalized: normalizeShoppingValue(tag),
@@ -593,6 +637,8 @@ export async function restoreShoppingItem(formData: FormData) {
 
   const itemId = formData.get("itemId") as string
   if (!itemId) throw new Error("Ungültige Eingabe")
+
+  await assertShoppingItemAccess(session.user.id, itemId)
 
   await prisma.shoppingItem.update({
     where: { id: itemId },
@@ -615,4 +661,39 @@ export async function setShoppingView(formData: FormData) {
   })
 
   revalidatePath("/shopping")
+}
+
+export async function createShoppingList(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const name = (formData.get("name") as string)?.trim()
+  if (!name) throw new Error("Name fehlt")
+
+  const isSharedWithAll = formData.get("isSharedWithAll") === "true"
+  const memberIds = Array.from(new Set(
+    formData
+      .getAll("memberIds")
+      .map((v) => String(v).trim())
+      .filter(Boolean)
+      .filter((id) => id !== session.user.id)
+  ))
+
+  const created = await prisma.shoppingList.create({
+    data: {
+      name,
+      nameNormalized: normalizeShoppingValue(name),
+      createdById: session.user.id,
+      isSharedWithAll,
+      members: isSharedWithAll
+        ? undefined
+        : {
+            create: memberIds.map((userId) => ({ userId })),
+          },
+    },
+  })
+
+  revalidatePath("/shopping")
+
+  return created.id
 }

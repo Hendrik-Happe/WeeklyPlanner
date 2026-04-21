@@ -24,6 +24,37 @@ model User {
   createdRecipes     Recipe[]         @relation("RecipeCreatedBy")
   assignedMealPlans  MealPlan[]       @relation("MealPlanAssignedBy")
   createdShoppingItems ShoppingItem[] @relation("ShoppingItemCreatedBy")
+  createdShoppingLists ShoppingList[] @relation("ShoppingListCreatedBy")
+  shoppingListMemberships ShoppingListMember[]
+}
+
+model ShoppingList {
+  id              String   @id @default(cuid())
+  name            String
+  nameNormalized  String
+  isSharedWithAll Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdById String
+  createdBy   User @relation("ShoppingListCreatedBy", fields: [createdById], references: [id])
+
+  members    ShoppingListMember[]
+  items      ShoppingItem[]
+  tagHistory ShoppingTagHistory[]
+
+  @@index([nameNormalized])
+}
+
+model ShoppingListMember {
+  id        String   @id @default(cuid())
+  listId    String
+  list      ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([listId, userId])
 }
 
 model Task {
@@ -128,8 +159,12 @@ model ShoppingItem {
   createdById String
   createdBy   User @relation("ShoppingItemCreatedBy", fields: [createdById], references: [id])
 
+  listId String?
+  list   ShoppingList? @relation(fields: [listId], references: [id], onDelete: Cascade)
+
   tags ShoppingItemTag[]
 
+  @@index([listId])
   @@index([nameNormalized])
 }
 
@@ -145,10 +180,13 @@ model ShoppingItemTag {
 
 model ShoppingTagHistory {
   id                 String   @id @default(cuid())
+  listId             String?
+  list               ShoppingList? @relation(fields: [listId], references: [id], onDelete: Cascade)
   itemNameNormalized String
   value              String
   valueNormalized    String
   createdAt          DateTime @default(now())
 
-  @@unique([itemNameNormalized, valueNormalized])
+  @@index([listId])
+  @@unique([listId, itemNameNormalized, valueNormalized])
 }

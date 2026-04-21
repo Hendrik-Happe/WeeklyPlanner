@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 
 type Props = {
   action: (formData: FormData) => Promise<void>
+  listId: string
   nameSuggestions: string[]
   tagsByItem: Record<string, string[]>
   onSuccess?: () => void
@@ -20,7 +21,7 @@ function parseTagsText(text: string): string[] {
     .filter(Boolean)
 }
 
-export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem, onSuccess }: Props) {
+export default function ShoppingItemForm({ action, listId, nameSuggestions, tagsByItem, onSuccess }: Props) {
   const [name, setName] = useState("")
   const [tagsText, setTagsText] = useState("")
   const [pending, startTransition] = useTransition()
@@ -55,6 +56,7 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem, 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      <input type="hidden" name="listId" value={listId} />
       <div>
         <label className="block text-sm font-medium mb-1">Item</label>
         <input

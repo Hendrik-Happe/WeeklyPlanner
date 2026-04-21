@@ -5,11 +5,12 @@ import ShoppingItemForm from "@/components/ShoppingItemForm"
 
 type Props = {
   action: (formData: FormData) => Promise<void>
+  listId: string
   nameSuggestions: string[]
   tagsByItem: Record<string, string[]>
 }
 
-export default function ShoppingAddOverlay({ action, nameSuggestions, tagsByItem }: Props) {
+export default function ShoppingAddOverlay({ action, listId, nameSuggestions, tagsByItem }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -46,6 +47,7 @@ export default function ShoppingAddOverlay({ action, nameSuggestions, tagsByItem
             </div>
             <ShoppingItemForm
               action={action}
+              listId={listId}
               nameSuggestions={nameSuggestions}
               tagsByItem={tagsByItem}
               onSuccess={() => setOpen(false)}
