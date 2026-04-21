@@ -52,7 +52,7 @@ export default function MealWeekPickerOverlay({ dateStr, dateLabel, recipes, def
             aria-label="Overlay schließen"
           />
 
-          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 p-4 pb-6 max-h-[78vh] overflow-y-auto">
+          <div className="absolute top-3 bottom-16 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 p-4 pb-6 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-sm">Rezept auswählen</h3>
@@ -73,6 +73,7 @@ export default function MealWeekPickerOverlay({ dateStr, dateLabel, recipes, def
                 recipes={recipes}
                 defaultRecipeId={defaultRecipeId}
                 submitOnSelect
+                listMaxHeightClass="max-h-[58vh]"
               />
             </form>
           </div>

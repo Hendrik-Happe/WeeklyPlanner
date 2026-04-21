@@ -13,6 +13,7 @@ type Props = {
   name?: string
   compact?: boolean
   submitOnSelect?: boolean
+  listMaxHeightClass?: string
 }
 
 export default function RecipePicker({
@@ -21,6 +22,7 @@ export default function RecipePicker({
   name = "recipeId",
   compact = false,
   submitOnSelect = false,
+  listMaxHeightClass,
 }: Props) {
   const [query, setQuery] = useState("")
   const [selectedRecipeId, setSelectedRecipeId] = useState(defaultRecipeId ?? "")
@@ -57,7 +59,7 @@ export default function RecipePicker({
         <p className="text-xs text-gray-500">Keine Rezepte gefunden.</p>
       ) : (
         <div
-          className={`grid ${compact ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-2 max-h-44 overflow-y-auto pr-1`}
+          className={`grid ${compact ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-2 ${listMaxHeightClass ?? "max-h-44"} overflow-y-auto pr-1`}
         >
           {filtered.map((recipe) => {
             const active = selectedRecipeId === recipe.id
