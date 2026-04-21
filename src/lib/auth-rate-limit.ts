@@ -49,6 +49,10 @@ export function authRateLimitKey(username: string, ip: string): string {
   return `${username.toLowerCase()}|${ip}`
 }
 
+export function authRateLimitUnknownKey(username: string, userAgent: string): string {
+  return `${username.toLowerCase()}|ua:${userAgent}`
+}
+
 export async function isAuthBlocked(key: string): Promise<boolean> {
   if (!isAuthRateLimitEnabled()) return false
 

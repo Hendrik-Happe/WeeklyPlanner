@@ -2,8 +2,10 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { createHash } from "crypto"
 import {
   authRateLimitKey,
+  authRateLimitUnknownKey,
   clearAuthRateLimit,
   isAuthBlocked,
   isAuthRateLimitEnabled,
@@ -32,6 +34,12 @@ function getClientIp(request?: Request): string {
   if (xRealIp) return xRealIp
 
   return "unknown"
+}
+
+function getUserAgentFingerprint(request?: Request): string {
+  const raw = request?.headers.get("user-agent")?.trim()
+  if (!raw) return "unknown"
+  return createHash("sha256").update(raw).digest("hex").slice(0, 16)
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -64,7 +72,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!isValidPinFormat(pin)) return null
 
         const rateLimitEnabled = isAuthRateLimitEnabled()
-        const key = authRateLimitKey(username, getClientIp(request))
+        const clientIp = getClientIp(request)
+        const key = clientIp !== "unknown"
+          ? authRateLimitKey(username, clientIp)
+          : authRateLimitUnknownKey(username, getUserAgentFingerprint(request))
         if (rateLimitEnabled && await isAuthBlocked(key)) {
           return null
         }
