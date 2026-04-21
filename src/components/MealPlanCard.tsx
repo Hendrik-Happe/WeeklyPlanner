@@ -52,7 +52,12 @@ export default function MealPlanCard({ dateStr, mealPlan, recipes, compact = fal
               <h3 className="font-semibold text-gray-900 mt-1">{mealPlan.recipe.title}</h3>
               <p className="text-sm text-gray-500 mt-1">{sourceLabel(mealPlan)}</p>
               {mealPlan.recipe.description && !compact && (
-                <p className="text-sm text-gray-600 mt-2 whitespace-pre-line">{mealPlan.recipe.description}</p>
+                <details className="mt-2">
+                  <summary className="text-sm text-rose-700 cursor-pointer select-none">
+                    Beschreibung
+                  </summary>
+                  <p className="text-sm text-gray-600 mt-2 whitespace-pre-line">{mealPlan.recipe.description}</p>
+                </details>
               )}
               {mealPlan.recipe.url && (
                 <Link
