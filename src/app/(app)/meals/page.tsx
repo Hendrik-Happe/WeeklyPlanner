@@ -19,10 +19,12 @@ function getWeekDays(date: Date): Date[] {
 export default async function MealsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>
+  searchParams: Promise<{ week?: string; recipeQ?: string; recipeSource?: string }>
 }) {
-  const { week: weekParam } = await searchParams
+  const { week: weekParam, recipeQ: recipeQParam, recipeSource: recipeSourceParam } = await searchParams
   const weekOffset = parseInt(weekParam ?? "0", 10) || 0
+  const recipeQ = (recipeQParam ?? "").trim()
+  const recipeSource = recipeSourceParam ?? ""
   const today = getTodayInBerlin()
   const baseDate = new Date(today)
   baseDate.setDate(today.getDate() + weekOffset * 7)
@@ -32,6 +34,21 @@ export default async function MealsPage({
     getRecipes(),
     getMealPlansForDates(weekDates),
   ])
+
+  const filteredRecipes = recipes
+    .filter((recipe) => {
+      if (recipeSource && recipe.sourceType !== recipeSource) return false
+      if (!recipeQ) return true
+
+      const q = recipeQ.toLowerCase()
+      return (
+        recipe.title.toLowerCase().includes(q) ||
+        (recipe.description ?? "").toLowerCase().includes(q) ||
+        (recipe.sourceText ?? "").toLowerCase().includes(q) ||
+        (recipe.url ?? "").toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => a.title.localeCompare(b.title, "de"))
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
@@ -60,13 +77,50 @@ export default async function MealsPage({
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
         <details>
           <summary className="text-lg font-semibold cursor-pointer select-none">
-            Rezepte verwalten ({recipes.length})
+            Rezepte verwalten ({filteredRecipes.length}/{recipes.length})
           </summary>
           <div className="mt-4 space-y-2">
-            {recipes.length === 0 ? (
+            <form className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2 mb-3">
+              {weekOffset !== 0 && <input type="hidden" name="week" value={String(weekOffset)} />}
+              <input
+                type="text"
+                name="recipeQ"
+                defaultValue={recipeQ}
+                placeholder="Rezept suchen..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <select
+                name="recipeSource"
+                defaultValue={recipeSource}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Alle Quellen</option>
+                <option value="APP">In der App</option>
+                <option value="BOOK">Buch</option>
+                <option value="LINK">Link</option>
+              </select>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Filtern
+                </button>
+                {(recipeQ || recipeSource) && (
+                  <a
+                    href={weekOffset === 0 ? "/meals" : `/meals?week=${weekOffset}`}
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Reset
+                  </a>
+                )}
+              </div>
+            </form>
+
+            {filteredRecipes.length === 0 ? (
               <p className="text-sm text-gray-400">Noch keine Rezepte gespeichert.</p>
             ) : (
-              recipes.map((recipe: (typeof recipes)[number]) => (
+              filteredRecipes.map((recipe: (typeof recipes)[number]) => (
                 <div key={recipe.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
