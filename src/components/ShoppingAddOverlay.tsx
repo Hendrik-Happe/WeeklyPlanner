@@ -47,6 +47,7 @@ export default function ShoppingAddOverlay({ action, nameSuggestions, tagsByItem
               action={action}
               nameSuggestions={nameSuggestions}
               tagsByItem={tagsByItem}
+              onSuccess={() => setOpen(false)}
             />
           </div>
         </div>

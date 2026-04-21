@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useTransition } from "react"
 
 type Props = {
   action: (formData: FormData) => Promise<void>
   nameSuggestions: string[]
   tagsByItem: Record<string, string[]>
+  onSuccess?: () => void
 }
 
 function normalize(value: string): string {
@@ -19,9 +20,19 @@ function parseTagsText(text: string): string[] {
     .filter(Boolean)
 }
 
-export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }: Props) {
+export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem, onSuccess }: Props) {
   const [name, setName] = useState("")
   const [tagsText, setTagsText] = useState("")
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      await action(formData)
+      onSuccess?.()
+    })
+  }
 
   const availableTags = useMemo(() => {
     const key = normalize(name)
@@ -43,7 +54,7 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }
   }
 
   return (
-    <form action={action} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <div>
         <label className="block text-sm font-medium mb-1">Item</label>
         <input
@@ -103,9 +114,10 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }
 
       <button
         type="submit"
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-3 font-semibold text-base transition-colors"
+        disabled={pending}
+        className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white rounded-lg py-3 font-semibold text-base transition-colors"
       >
-        Zur Einkaufsliste hinzufügen
+        {pending ? "Hinzufügen…" : "Zur Einkaufsliste hinzufügen"}
       </button>
     </form>
   )
