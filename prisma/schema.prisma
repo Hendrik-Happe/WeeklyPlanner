@@ -7,11 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id        String   @id @default(cuid())
   username  String   @unique
   pinHash   String
-  role      String   @default("USER") // USER | ADMIN
+  role      Role     @default(USER)
   sessionVersion Int  @default(0)
   shoppingView String @default("LIST") // LIST | GRID
   createdAt DateTime @default(now())
