@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import OnlineOnlyGuard from "@/components/OnlineOnlyGuard"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -15,7 +16,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de">
-      <body className="bg-gray-50 text-gray-900">{children}</body>
+      <body className="bg-gray-50 text-gray-900">
+        <OnlineOnlyGuard />
+        {children}
+      </body>
     </html>
   )
 }
