@@ -11,6 +11,7 @@ export async function getShoppingItems() {
 export async function getRemovedShoppingItems() {
   return prisma.shoppingItem.findMany({
     where: { NOT: { removedAt: null } },
+    include: { tags: true },
     orderBy: [{ removedAt: "desc" }],
   })
 }

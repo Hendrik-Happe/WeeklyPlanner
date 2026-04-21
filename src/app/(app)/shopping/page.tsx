@@ -66,8 +66,20 @@ export default async function ShoppingPage() {
         ) : (
           <div className="space-y-2">
             {removedItems.map((item) => (
-              <div key={item.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 flex items-center justify-between gap-3">
-                <p className="text-sm text-gray-600">{item.name}</p>
+              <div key={item.id} className="rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-600">{item.name}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {item.tags.map((tag) => (
+                      <span key={tag.id} className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5 border border-gray-200">
+                        {tag.value}
+                      </span>
+                    ))}
+                    {item.tags.length === 0 && (
+                      <span className="text-xs text-gray-400">Keine Tags</span>
+                    )}
+                  </div>
+                </div>
                 <form action={restoreShoppingItem}>
                   <input type="hidden" name="itemId" value={item.id} />
                   <button
