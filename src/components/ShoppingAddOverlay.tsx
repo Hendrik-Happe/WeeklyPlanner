@@ -14,15 +14,16 @@ export default function ShoppingAddOverlay({ action, nameSuggestions, tagsByItem
 
   return (
     <>
-      {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="fixed bottom-24 right-4 z-[60] rounded-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-lg"
-        >
-          + Item hinzufügen
-        </button>
-      )}
+      <input
+        type="text"
+        readOnly
+        placeholder="+ Item hinzufügen…"
+        onFocus={(e) => {
+          e.currentTarget.blur()
+          setOpen(true)
+        }}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base placeholder-gray-400 cursor-pointer focus:outline-none"
+      />
 
       {open && (
         <div className="fixed inset-0 z-[70]">

@@ -50,6 +50,12 @@ export default async function ShoppingPage() {
         </div>
       </section>
 
+      <ShoppingAddOverlay
+        action={addShoppingItem}
+        nameSuggestions={suggestions.names}
+        tagsByItem={suggestions.tagsByItem}
+      />
+
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <h2 className="font-semibold mb-3">Aktuelle Liste ({items.length})</h2>
         {items.length === 0 ? (
@@ -128,11 +134,6 @@ export default async function ShoppingPage() {
         )}
       </section>
 
-      <ShoppingAddOverlay
-        action={addShoppingItem}
-        nameSuggestions={suggestions.names}
-        tagsByItem={suggestions.tagsByItem}
-      />
     </div>
   )
 }
