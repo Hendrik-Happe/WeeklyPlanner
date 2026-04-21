@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { useState, useTransition } from "react"
-import { setMealPlan } from "@/app/(app)/actions"
+import { clearMealPlan, setMealPlan } from "@/app/(app)/actions"
 import RecipePicker from "@/components/RecipePicker"
 
 type Recipe = {
@@ -11,12 +12,25 @@ type Recipe = {
 
 type Props = {
   dateStr: string
-  dateLabel: string
+  dateLabel?: string
   recipes: Recipe[]
   defaultRecipeId?: string
+  triggerClassName?: string
+  triggerLabel?: string
+  showClearAction?: boolean
+  showManageLink?: boolean
 }
 
-export default function MealWeekPickerOverlay({ dateStr, dateLabel, recipes, defaultRecipeId }: Props) {
+export default function MealWeekPickerOverlay({
+  dateStr,
+  dateLabel,
+  recipes,
+  defaultRecipeId,
+  triggerClassName,
+  triggerLabel,
+  showClearAction = false,
+  showManageLink = false,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -33,14 +47,27 @@ export default function MealWeekPickerOverlay({ dateStr, dateLabel, recipes, def
     })
   }
 
+  function handleClearMealPlan(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+
+    startTransition(async () => {
+      await clearMealPlan(formData)
+      setOpen(false)
+    })
+  }
+
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg border border-rose-200 bg-white text-rose-700 py-2 text-sm font-medium hover:bg-rose-50 transition-colors"
+        className={
+          triggerClassName ??
+          "w-full rounded-lg border border-rose-200 bg-white text-rose-700 py-2 text-sm font-medium hover:bg-rose-50 transition-colors"
+        }
       >
-        {defaultRecipeId ? "Rezept ändern" : "Rezept auswählen"}
+        {triggerLabel ?? (defaultRecipeId ? "Rezept ändern" : "Rezept auswählen")}
       </button>
 
       {open && (
@@ -56,7 +83,7 @@ export default function MealWeekPickerOverlay({ dateStr, dateLabel, recipes, def
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-sm">Rezept auswählen</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{dateLabel}</p>
+                {dateLabel && <p className="text-xs text-gray-500 mt-0.5">{dateLabel}</p>}
               </div>
               <button
                 type="button"
@@ -76,6 +103,29 @@ export default function MealWeekPickerOverlay({ dateStr, dateLabel, recipes, def
                 listMaxHeightClass="max-h-[58vh]"
               />
             </form>
+
+            {(showClearAction || showManageLink) && (
+              <div className="mt-4 space-y-2">
+                {showClearAction && defaultRecipeId && (
+                  <form onSubmit={handleClearMealPlan}>
+                    <input type="hidden" name="date" value={dateStr} />
+                    <button
+                      type="submit"
+                      disabled={pending}
+                      className="text-sm text-gray-600 hover:text-gray-800 disabled:opacity-60"
+                    >
+                      Rezept für diesen Tag entfernen
+                    </button>
+                  </form>
+                )}
+
+                {showManageLink && (
+                  <Link href="/meals" className="inline-block text-sm text-blue-600 hover:text-blue-700">
+                    Rezepte verwalten
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

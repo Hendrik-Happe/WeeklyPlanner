@@ -1,9 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useTransition } from "react"
-import { clearMealPlan, setMealPlan } from "@/app/(app)/actions"
-import RecipePicker from "@/components/RecipePicker"
+import MealWeekPickerOverlay from "@/components/MealWeekPickerOverlay"
 
 type RecipeOption = {
   id: string
@@ -44,30 +42,6 @@ function sourceLabel(mealPlan: MealPlan) {
 }
 
 export default function MealPlanCard({ dateStr, mealPlan, recipes, compact = false }: Props) {
-  const [open, setOpen] = useState(false)
-  const [pending, startTransition] = useTransition()
-
-  function handleSetMealPlan(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const form = e.currentTarget
-    const formData = new FormData(form)
-    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
-    if (submitter?.name) formData.set(submitter.name, submitter.value)
-    startTransition(async () => {
-      await setMealPlan(formData)
-      setOpen(false)
-    })
-  }
-
-  function handleClearMealPlan(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    startTransition(async () => {
-      await clearMealPlan(formData)
-      setOpen(false)
-    })
-  }
-
   return (
     <div className={`rounded-xl border ${compact ? "p-3" : "p-4"} bg-rose-50 border-rose-100`}>
       <div className="flex items-start justify-between gap-3">
@@ -101,63 +75,14 @@ export default function MealPlanCard({ dateStr, mealPlan, recipes, compact = fal
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mt-3 text-sm text-rose-700 hover:text-rose-800"
-      >
-          {mealPlan ? "Rezept ändern" : "Rezept auswählen"}
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-[80]">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/35"
-            aria-label="Overlay schließen"
-          />
-
-          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 p-4 pb-6 max-h-[78vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm">
-                {mealPlan ? "Rezept ändern" : "Rezept auswählen"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Schließen
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <form onSubmit={handleSetMealPlan} className="flex gap-2">
-                <input type="hidden" name="date" value={dateStr} />
-                <RecipePicker recipes={recipes} defaultRecipeId={mealPlan?.recipe.id} submitOnSelect />
-              </form>
-
-              {mealPlan && (
-                <form onSubmit={handleClearMealPlan}>
-                  <input type="hidden" name="date" value={dateStr} />
-                  <button
-                    type="submit"
-                    disabled={pending}
-                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-60"
-                  >
-                    Rezept für diesen Tag entfernen
-                  </button>
-                </form>
-              )}
-
-              <Link href="/meals" className="inline-block text-sm text-blue-600 hover:text-blue-700">
-                Rezepte verwalten
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      <MealWeekPickerOverlay
+        dateStr={dateStr}
+        recipes={recipes}
+        defaultRecipeId={mealPlan?.recipe.id}
+        triggerClassName="mt-3 text-sm text-rose-700 hover:text-rose-800"
+        showClearAction
+        showManageLink
+      />
     </div>
   )
 }
