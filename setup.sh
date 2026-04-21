@@ -73,6 +73,11 @@ prompt_secret() {
 ADMIN_USERNAME="${SEED_ADMIN_USERNAME:-}"
 ADMIN_PIN="${SEED_ADMIN_PIN:-}"
 
+PIN_MIN_LENGTH=$(get_env_var "AUTH_PIN_MIN_LENGTH" "6")
+if ! [[ "$PIN_MIN_LENGTH" =~ ^[0-9]+$ ]] || [ "$PIN_MIN_LENGTH" -lt 4 ]; then
+  PIN_MIN_LENGTH=6
+fi
+
 ensure_env_var "NEXT_PUBLIC_APP_NAME" '"WeeklyPlaner"'
 ensure_env_var "NEXT_PUBLIC_APP_SHORT_NAME" '"WeeklyPlaner"'
 ensure_env_var "NEXT_PUBLIC_APP_DESCRIPTION" '"Familien-Wochenplaner"'
@@ -86,6 +91,12 @@ ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT" '"#3b82f6"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT_SOFT" '"#93c5fd"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL" '"#ffffff"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL_SOFT" '"#bfdbfe"'
+ensure_env_var "AUTH_PIN_MIN_LENGTH" "$PIN_MIN_LENGTH"
+ensure_env_var "AUTH_RATE_LIMIT_ENABLED" "true"
+ensure_env_var "AUTH_RATE_LIMIT_WINDOW_SECONDS" "300"
+ensure_env_var "AUTH_RATE_LIMIT_MAX_ATTEMPTS" "5"
+ensure_env_var "AUTH_RATE_LIMIT_BLOCK_SECONDS" "900"
+ensure_env_var "AUTH_TRUST_PROXY_HEADERS" "false"
 
 if [ -t 0 ]; then
   echo ""
@@ -99,6 +110,7 @@ if [ -t 0 ]; then
   prompt_env_var "NEXT_PUBLIC_APP_BACKGROUND_COLOR" "Hintergrundfarbe" "#f9fafb"
   prompt_env_var "NEXT_PUBLIC_APP_START_URL" "Start-URL" "/day"
   prompt_env_var "NEXT_PUBLIC_APP_ICON_TEXT" "Icon-Text (1-2 Zeichen)" "W"
+  prompt_env_var "AUTH_PIN_MIN_LENGTH" "Mindestlaenge fuer PIN" "$PIN_MIN_LENGTH"
 
   echo ""
   printf "Erweiterte Icon-Farben konfigurieren? [j/N]: "
@@ -124,9 +136,9 @@ if [ -t 0 ]; then
   fi
 
   while true; do
-    ADMIN_PIN=$(prompt_secret "Admin-PIN (mindestens 4 Zeichen)")
-    if [ ${#ADMIN_PIN} -lt 4 ]; then
-      echo "PIN ist zu kurz. Bitte mindestens 4 Zeichen verwenden."
+    ADMIN_PIN=$(prompt_secret "Admin-PIN (mindestens ${PIN_MIN_LENGTH} Zeichen)")
+    if [ ${#ADMIN_PIN} -lt "$PIN_MIN_LENGTH" ]; then
+      echo "PIN ist zu kurz. Bitte mindestens ${PIN_MIN_LENGTH} Zeichen verwenden."
       continue
     fi
 

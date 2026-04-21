@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
+import { getPinMinLength } from "@/lib/security-config"
 
 async function requireSession() {
   const session = await getCurrentSession()
@@ -12,11 +13,44 @@ async function requireSession() {
   return session
 }
 
+async function getAuthorizedTask(
+  userId: string,
+  taskId: string,
+  date?: string,
+) {
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      OR: [
+        { isPrivate: false },
+        { createdById: userId },
+        { assignedToId: userId },
+        {
+          assignments: {
+            some: {
+              userId,
+              ...(date ? { date } : {}),
+            },
+          },
+        },
+      ],
+    },
+    include: {
+      assignments: date ? { where: { date } } : true,
+    },
+  })
+
+  if (!task) throw new Error("Aufgabe nicht gefunden oder keine Berechtigung")
+  return task
+}
+
 export async function markDone(formData: FormData) {
   const session = await requireSession()
 
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
+
+  await getAuthorizedTask(session.user.id, taskId, date)
 
   await prisma.taskCompletion.upsert({
     where: { taskId_date: { taskId, date } },
@@ -34,6 +68,8 @@ export async function snoozeTask(formData: FormData) {
 
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
+
+  await getAuthorizedTask(session.user.id, taskId, date)
 
   const d = new Date(date + "T00:00:00")
   d.setDate(d.getDate() + 1)
@@ -144,8 +180,9 @@ export async function createUser(formData: FormData) {
   const username = (formData.get("username") as string).trim()
   const pin = formData.get("pin") as string
   const role = formData.get("role") as string
+  const pinMinLength = getPinMinLength()
 
-  if (!username || !pin || pin.length < 4) {
+  if (!username || !pin || pin.length < pinMinLength) {
     throw new Error("Ungültige Eingabe")
   }
 
@@ -171,11 +208,7 @@ export async function claimTask(formData: FormData) {
     throw new Error("Kein Zugriff")
   }
 
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    include: { assignments: { where: { date } } },
-  })
-  if (!task) throw new Error("Aufgabe nicht gefunden")
+  const task = await getAuthorizedTask(session.user.id, taskId, date)
 
   if (scope === "once") {
     // Datumsspezifische Zuweisung (überschreibt dauerhafte für diesen Tag)
@@ -203,11 +236,7 @@ export async function unclaimTask(formData: FormData) {
   const taskId = formData.get("taskId") as string
   const date = formData.get("date") as string
 
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    include: { assignments: { where: { date } } },
-  })
-  if (!task) throw new Error("Aufgabe nicht gefunden")
+  const task = await getAuthorizedTask(session.user.id, taskId, date)
 
   const isAdmin = session.user.role === "ADMIN"
 
@@ -236,8 +265,11 @@ export async function changePin(formData: FormData) {
   const currentPin = formData.get("currentPin") as string
   const newPin = formData.get("newPin") as string
   const confirmPin = formData.get("confirmPin") as string
+  const pinMinLength = getPinMinLength()
 
-  if (!newPin || newPin.length < 4) throw new Error("PIN muss mindestens 4 Zeichen haben")
+  if (!newPin || newPin.length < pinMinLength) {
+    throw new Error(`PIN muss mindestens ${pinMinLength} Zeichen haben`)
+  }
   if (newPin !== confirmPin) throw new Error("PINs stimmen nicht überein")
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } })
@@ -247,7 +279,13 @@ export async function changePin(formData: FormData) {
   if (!valid) throw new Error("Aktueller PIN ist falsch")
 
   const pinHash = await bcrypt.hash(newPin, 12)
-  await prisma.user.update({ where: { id: user.id }, data: { pinHash } })
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      pinHash,
+      sessionVersion: { increment: 1 },
+    },
+  })
 
   revalidatePath("/settings")
 }
@@ -319,11 +357,20 @@ export async function adminResetPin(formData: FormData) {
 
   const userId = formData.get("userId") as string
   const newPin = formData.get("newPin") as string
+  const pinMinLength = getPinMinLength()
 
-  if (!newPin || newPin.length < 4) throw new Error("PIN muss mindestens 4 Zeichen haben")
+  if (!newPin || newPin.length < pinMinLength) {
+    throw new Error(`PIN muss mindestens ${pinMinLength} Zeichen haben`)
+  }
 
   const pinHash = await bcrypt.hash(newPin, 12)
-  await prisma.user.update({ where: { id: userId }, data: { pinHash } })
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      pinHash,
+      sessionVersion: { increment: 1 },
+    },
+  })
 
   revalidatePath("/admin")
 }

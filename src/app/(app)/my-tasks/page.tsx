@@ -1,7 +1,8 @@
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { formatDate, getTodayInBerlin } from "@/lib/tasks"
 import TaskCard from "@/components/TaskCard"
+import { redirect } from "next/navigation"
 
 const RECURRENCE_LABELS: Record<string, string> = {
   ONCE: "Einmalig",
@@ -11,16 +12,17 @@ const RECURRENCE_LABELS: Record<string, string> = {
 }
 
 export default async function MyTasksPage() {
-  const session = await auth()
+  const session = await getCurrentSession()
+  if (!session) redirect("/login")
   const todayStr = formatDate(getTodayInBerlin())
 
   const tasks = await prisma.task.findMany({
     where: {
       OR: [
         // Dauerhaft mir zugewiesen
-        { assignedToId: session!.user.id },
+        { assignedToId: session.user.id },
         // Meine privaten Aufgaben (von mir erstellt, nur für mich sichtbar)
-        { isPrivate: true, createdById: session!.user.id },
+        { isPrivate: true, createdById: session.user.id },
       ],
     },
     include: {
@@ -45,7 +47,7 @@ export default async function MyTasksPage() {
               {task.recurrence && (
                 <p className="text-xs text-gray-400 px-1 mb-1">
                   {RECURRENCE_LABELS[task.recurrence.type] ?? task.recurrence.type}
-                  {task.createdById !== session!.user.id && (
+                  {task.createdById !== session.user.id && (
                     <span> · von {task.createdBy.username}</span>
                   )}
                 </p>
@@ -53,8 +55,8 @@ export default async function MyTasksPage() {
               <TaskCard
                 task={task}
                 dateStr={todayStr}
-                userId={session!.user.id}
-                userRole={session!.user.role}
+                userId={session.user.id}
+                userRole={session.user.role}
               />
             </div>
           ))}

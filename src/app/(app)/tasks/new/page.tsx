@@ -1,11 +1,12 @@
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { createTask } from "@/app/(app)/actions"
 import { redirect } from "next/navigation"
 import NewTaskForm from "@/components/NewTaskForm"
 
 export default async function NewTaskPage() {
-  const session = await auth()
+  const session = await getCurrentSession()
+  if (!session) redirect("/login")
   const isAdmin = session?.user.role === "ADMIN"
 
   const users = isAdmin

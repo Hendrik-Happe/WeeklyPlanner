@@ -1,9 +1,10 @@
-import { auth } from "@/lib/auth"
-import { signOut } from "@/lib/auth"
+import { getCurrentSession, signOut } from "@/lib/auth"
 import ChangePinForm from "@/components/ChangePinForm"
+import { redirect } from "next/navigation"
 
 export default async function SettingsPage() {
-  const session = await auth()
+  const session = await getCurrentSession()
+  if (!session) redirect("/login")
 
   return (
     <div className="max-w-2xl mx-auto p-4">
@@ -11,7 +12,7 @@ export default async function SettingsPage() {
 
       <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 mb-4">
         <p className="text-sm text-gray-500 mb-4">
-          Angemeldet als <span className="font-semibold text-gray-800">{session?.user.name}</span>
+          Angemeldet als <span className="font-semibold text-gray-800">{session.user.name}</span>
         </p>
 
         <h2 className="font-semibold mb-3">PIN ändern</h2>

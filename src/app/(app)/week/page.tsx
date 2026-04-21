@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
 import MealPlanCard from "@/components/MealPlanCard"
@@ -7,6 +7,7 @@ import { getMealPlansForDates, getRecipes } from "@/lib/meals"
 import TaskCard from "@/components/TaskCard"
 import WeekNav from "@/components/WeekNav"
 import FilterBar from "@/components/FilterBar"
+import { redirect } from "next/navigation"
 
 function getWeekDays(date: Date): Date[] {
   const day = date.getDay()
@@ -37,7 +38,8 @@ export default async function WeekPage({
   const hideDone = hideDoneParam === "1"
   const hideAssigned = hideAssignedParam === "1"
 
-  const session = await auth()
+  const session = await getCurrentSession()
+  if (!session) redirect("/login")
   const today = getTodayInBerlin()
 
   // Ausgangsdatum: heute + weekOffset * 7 Tage
@@ -55,7 +57,7 @@ export default async function WeekPage({
     : monday.getFullYear()
   const weekLabel = `KW ${kw} – ${year}`
 
-  const isAdmin = session!.user.role === "ADMIN"
+  const isAdmin = session.user.role === "ADMIN"
   const users = isAdmin
     ? await prisma.user.findMany({ select: { id: true, username: true }, orderBy: { username: "asc" } })
     : undefined
@@ -68,7 +70,7 @@ export default async function WeekPage({
   const tasksByDay = await Promise.all(
     weekDays.map(async (day) => {
       const dateStr = formatDate(day)
-      let tasks = await getTasksForDate(dateStr, session!.user.id)
+      let tasks = await getTasksForDate(dateStr, session.user.id)
       if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c: { date: string; status: string }) => c.date === dateStr && c.status === "DONE"))
       if (hideAssigned) tasks = tasks.filter((t) => !resolveAssignedTo(t, dateStr))
       return { date: day, dateStr, tasks }
@@ -120,8 +122,8 @@ export default async function WeekPage({
                     key={task.id}
                     task={task}
                     dateStr={dateStr}
-                    userId={session!.user.id}
-                    userRole={session!.user.role}
+                    userId={session.user.id}
+                    userRole={session.user.role}
                     users={users}
                   />
                 ))}

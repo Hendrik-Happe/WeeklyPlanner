@@ -1,11 +1,13 @@
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { createUser, adminResetPin } from "@/app/(app)/actions"
+import { getPinMinLength } from "@/lib/security-config"
 
 export default async function AdminPage() {
-  const session = await auth()
+  const session = await getCurrentSession()
   if (session?.user.role !== "ADMIN") redirect("/day")
+  const pinMinLength = getPinMinLength()
 
   const users = await prisma.user.findMany({
     select: { id: true, username: true, role: true },
@@ -28,10 +30,10 @@ export default async function AdminPage() {
           <input
             name="pin"
             type="password"
-            placeholder="PIN (mind. 4 Zeichen)"
+            placeholder={`PIN (mind. ${pinMinLength} Zeichen)`}
             inputMode="numeric"
             required
-            minLength={4}
+            minLength={pinMinLength}
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <select
@@ -80,7 +82,7 @@ export default async function AdminPage() {
                     placeholder="Neuer PIN"
                     inputMode="numeric"
                     required
-                    minLength={4}
+                    minLength={pinMinLength}
                     className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button

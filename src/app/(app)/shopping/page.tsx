@@ -1,22 +1,24 @@
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { addShoppingItem, createShoppingList, removeShoppingItem, restoreShoppingItem, setShoppingView, updateShoppingItemTags } from "@/app/(app)/actions"
 import ShoppingAddOverlay from "@/components/ShoppingAddOverlay"
 import ShoppingListAddOverlay from "@/components/ShoppingListAddOverlay"
 import ShoppingTagEditor from "@/components/ShoppingTagEditor"
 import { getAccessibleShoppingLists, getOrCreateDefaultShoppingList, getRemovedShoppingItems, getShoppingItems, getShoppingSuggestions } from "@/lib/shopping"
+import { redirect } from "next/navigation"
 
 export default async function ShoppingPage({
   searchParams,
 }: {
   searchParams: Promise<{ list?: string }>
 }) {
-  const session = await auth()
+  const session = await getCurrentSession()
+  if (!session) redirect("/login")
   const { list: listParam } = await searchParams
 
-  await getOrCreateDefaultShoppingList(session!.user.id)
+  await getOrCreateDefaultShoppingList(session.user.id)
 
-  const lists = await getAccessibleShoppingLists(session!.user.id)
+  const lists = await getAccessibleShoppingLists(session.user.id)
   const activeList = lists.find((list) => list.id === listParam) ?? lists[0]
 
   if (!activeList) {
@@ -28,13 +30,13 @@ export default async function ShoppingPage({
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session!.user.id },
+    where: { id: session.user.id },
     select: { shoppingView: true },
   })
   const isGridView = user?.shoppingView === "GRID"
 
   const shareableUsers = await prisma.user.findMany({
-    where: { id: { not: session!.user.id } },
+    where: { id: { not: session.user.id } },
     select: { id: true, username: true },
     orderBy: { username: "asc" },
   })

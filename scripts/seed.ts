@@ -3,6 +3,13 @@ import bcrypt from "bcryptjs"
 
 const prisma = new PrismaClient()
 
+function getPinMinLength(): number {
+  const raw = process.env.AUTH_PIN_MIN_LENGTH
+  const parsed = raw ? Number(raw) : NaN
+  if (!Number.isFinite(parsed) || parsed < 4) return 6
+  return Math.floor(parsed)
+}
+
 async function main() {
   const existing = await prisma.user.findFirst({ where: { role: "ADMIN" } })
   if (existing) {
@@ -12,13 +19,14 @@ async function main() {
 
   const username = process.env.SEED_ADMIN_USERNAME?.trim()
   const pin = process.env.SEED_ADMIN_PIN?.trim()
+  const pinMinLength = getPinMinLength()
 
   if (!username) {
     throw new Error("SEED_ADMIN_USERNAME fehlt. Bitte beim Setup einen Admin-Benutzernamen angeben.")
   }
 
-  if (!pin || pin.length < 4) {
-    throw new Error("SEED_ADMIN_PIN fehlt oder ist zu kurz. Bitte mindestens 4 Zeichen angeben.")
+  if (!pin || pin.length < pinMinLength) {
+    throw new Error(`SEED_ADMIN_PIN fehlt oder ist zu kurz. Bitte mindestens ${pinMinLength} Zeichen angeben.`)
   }
 
   const duplicate = await prisma.user.findUnique({ where: { username } })

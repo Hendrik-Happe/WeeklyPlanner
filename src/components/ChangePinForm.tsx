@@ -2,10 +2,12 @@
 
 import { useState } from "react"
 import { changePin } from "@/app/(app)/actions"
+import { getPinMinLength } from "@/lib/security-config"
 
 export default function ChangePinForm() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const pinMinLength = getPinMinLength()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -34,13 +36,13 @@ export default function ChangePinForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Neuer PIN (mind. 4 Zeichen)</label>
+        <label className="block text-sm font-medium mb-1">Neuer PIN (mind. {pinMinLength} Zeichen)</label>
         <input
           name="newPin"
           type="password"
           inputMode="numeric"
           required
-          minLength={4}
+          minLength={pinMinLength}
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
@@ -51,7 +53,7 @@ export default function ChangePinForm() {
           type="password"
           inputMode="numeric"
           required
-          minLength={4}
+          minLength={pinMinLength}
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

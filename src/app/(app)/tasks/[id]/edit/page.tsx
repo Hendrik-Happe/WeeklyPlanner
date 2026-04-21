@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth"
+import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { notFound, redirect } from "next/navigation"
 import { updateTask } from "@/app/(app)/actions"
@@ -7,7 +7,8 @@ import { formatDate } from "@/lib/tasks"
 
 export default async function EditTaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const session = await auth()
+  const session = await getCurrentSession()
+  if (!session) redirect("/login")
 
   const task = await prisma.task.findUnique({
     where: { id },
@@ -19,8 +20,8 @@ export default async function EditTaskPage({ params }: { params: Promise<{ id: s
 
   if (!task) notFound()
 
-  const isOwner = task.createdById === session!.user.id
-  const isAdmin = session!.user.role === "ADMIN"
+  const isOwner = task.createdById === session.user.id
+  const isAdmin = session.user.role === "ADMIN"
   const canEdit = isOwner || (isAdmin && !task.isPrivate)
 
   if (!canEdit) redirect("/my-tasks")
