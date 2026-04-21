@@ -1,5 +1,6 @@
 import { createRecipe, deleteRecipe, updateRecipe } from "@/app/(app)/actions"
 import MealWeekGrid from "@/components/MealWeekGrid"
+import RecipeAddOverlay from "@/components/RecipeAddOverlay"
 import RecipeForm from "@/components/RecipeForm"
 import { getMealPlansForDates, getRecipes } from "@/lib/meals"
 import { formatDate, getTodayInBerlin } from "@/lib/tasks"
@@ -52,10 +53,7 @@ export default async function MealsPage({
         </p>
       </section>
 
-      <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
-        <h2 className="text-lg font-semibold mb-4">Rezept hinzufügen</h2>
-        <RecipeForm action={createRecipe} />
-      </section>
+      <RecipeAddOverlay action={createRecipe} />
 
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
         <MealWeekGrid

@@ -83,13 +83,7 @@ export default function MealWeekGrid({ days, recipes, mealPlans, weekOffset }: P
 
               <form action={setMealPlan} className="space-y-2">
                 <input type="hidden" name="date" value={dateStr} />
-                <RecipePicker recipes={recipes} defaultRecipeId={meal?.recipe.id} compact />
-                <button
-                  type="submit"
-                  className="w-full rounded-lg bg-rose-500 text-white py-2 text-sm font-medium hover:bg-rose-600 transition-colors"
-                >
-                  Speichern
-                </button>
+                <RecipePicker recipes={recipes} defaultRecipeId={meal?.recipe.id} compact submitOnSelect />
               </form>
 
               {meal && (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 
 type InitialValues = {
   title?: string
@@ -14,13 +14,31 @@ type Props = {
   action: (formData: FormData) => Promise<void>
   initialValues?: InitialValues
   submitLabel?: string
+  submitPendingLabel?: string
+  onSuccess?: () => void
 }
 
-export default function RecipeForm({ action, initialValues, submitLabel = "Rezept speichern" }: Props) {
+export default function RecipeForm({
+  action,
+  initialValues,
+  submitLabel = "Rezept speichern",
+  submitPendingLabel = "Speichern...",
+  onSuccess,
+}: Props) {
   const [sourceType, setSourceType] = useState(initialValues?.sourceType ?? "APP")
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      await action(formData)
+      onSuccess?.()
+    })
+  }
 
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium mb-1">Rezeptname</label>
         <input
@@ -88,9 +106,10 @@ export default function RecipeForm({ action, initialValues, submitLabel = "Rezep
 
       <button
         type="submit"
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-3 font-semibold text-base transition-colors"
+        disabled={pending}
+        className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white rounded-lg py-3 font-semibold text-base transition-colors"
       >
-        {submitLabel}
+        {pending ? submitPendingLabel : submitLabel}
       </button>
     </form>
   )
