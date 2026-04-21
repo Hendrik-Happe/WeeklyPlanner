@@ -327,3 +327,67 @@ export async function adminResetPin(formData: FormData) {
 
   revalidatePath("/admin")
 }
+
+export async function createRecipe(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const title = (formData.get("title") as string)?.trim()
+  const description = (formData.get("description") as string)?.trim() || null
+  const sourceType = (formData.get("sourceType") as string) || "APP"
+  const sourceText = (formData.get("sourceText") as string)?.trim() || null
+  const url = (formData.get("url") as string)?.trim() || null
+
+  if (!title) throw new Error("Titel fehlt")
+  if (sourceType === "BOOK" && !sourceText) throw new Error("Bitte Buch oder Seitenangabe angeben")
+  if (sourceType === "LINK" && !url) throw new Error("Bitte Link angeben")
+
+  await prisma.recipe.create({
+    data: {
+      title,
+      description,
+      sourceType,
+      sourceText,
+      url,
+      createdById: session.user.id,
+    },
+  })
+
+  revalidatePath("/meals")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function setMealPlan(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const date = formData.get("date") as string
+  const recipeId = formData.get("recipeId") as string
+
+  if (!date || !recipeId) throw new Error("Ungültige Eingabe")
+
+  await prisma.mealPlan.upsert({
+    where: { date },
+    create: { date, recipeId, assignedById: session.user.id },
+    update: { recipeId, assignedById: session.user.id },
+  })
+
+  revalidatePath("/meals")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function clearMealPlan(formData: FormData) {
+  const session = await auth()
+  if (!session) throw new Error("Nicht angemeldet")
+
+  const date = formData.get("date") as string
+  if (!date) throw new Error("Ungültige Eingabe")
+
+  await prisma.mealPlan.deleteMany({ where: { date } })
+
+  revalidatePath("/meals")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}

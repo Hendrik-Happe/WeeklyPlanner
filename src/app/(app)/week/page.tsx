@@ -1,7 +1,9 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
+import MealPlanCard from "@/components/MealPlanCard"
 import { formatDate, getTodayInBerlin, getTasksForDate, resolveAssignedTo } from "@/lib/tasks"
+import { getMealPlansForDates, getRecipes } from "@/lib/meals"
 import TaskCard from "@/components/TaskCard"
 import WeekNav from "@/components/WeekNav"
 import FilterBar from "@/components/FilterBar"
@@ -57,6 +59,11 @@ export default async function WeekPage({
   const users = isAdmin
     ? await prisma.user.findMany({ select: { id: true, username: true }, orderBy: { username: "asc" } })
     : undefined
+  const dateStrings = weekDays.map((day) => formatDate(day))
+  const [mealPlansByDate, recipes] = await Promise.all([
+    getMealPlansForDates(dateStrings),
+    getRecipes(),
+  ])
 
   const tasksByDay = await Promise.all(
     weekDays.map(async (day) => {
@@ -95,6 +102,14 @@ export default async function WeekPage({
                 )}
               </h2>
               <span className="text-xs text-gray-400">{tasks.length} Aufgaben</span>
+            </div>
+            <div className="mb-2">
+              <MealPlanCard
+                dateStr={dateStr}
+                mealPlan={mealPlansByDate.get(dateStr) ?? null}
+                recipes={recipes}
+                compact
+              />
             </div>
             {tasks.length === 0 ? (
               <p className="text-xs text-gray-300">Frei</p>

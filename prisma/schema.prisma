@@ -20,6 +20,8 @@ model User {
   completions        TaskCompletion[]
   assignments        TaskAssignment[]
   assignedByMeOnDate TaskAssignment[] @relation("AssignedByOnDate")
+  createdRecipes     Recipe[]         @relation("RecipeCreatedBy")
+  assignedMealPlans  MealPlan[]       @relation("MealPlanAssignedBy")
 }
 
 model Task {
@@ -84,4 +86,31 @@ model TaskCompletion {
   createdAt DateTime @default(now())
 
   @@unique([taskId, date])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  sourceType  String   // APP | BOOK | LINK
+  sourceText  String?
+  url         String?
+  createdAt   DateTime @default(now())
+
+  createdById String
+  createdBy   User     @relation("RecipeCreatedBy", fields: [createdById], references: [id])
+
+  mealPlans MealPlan[]
+}
+
+model MealPlan {
+  id        String   @id @default(cuid())
+  date      String   @unique // ISO-Datum: "2026-04-21"
+  createdAt DateTime @default(now())
+
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  assignedById String
+  assignedBy   User   @relation("MealPlanAssignedBy", fields: [assignedById], references: [id])
 }
