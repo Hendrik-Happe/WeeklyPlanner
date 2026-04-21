@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useState, useTransition } from "react"
 
 type Props = {
   itemId: string
@@ -9,10 +9,34 @@ type Props = {
   action: (formData: FormData) => Promise<void>
 }
 
+/** Parst den Textinhalt in eine Liste normalisierter Wörter für den Chip-Vergleich */
+function parseTagsText(text: string): string[] {
+  return text
+    .split(/[,;\n]/)
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean)
+}
+
 export default function ShoppingTagEditor({ itemId, existingTags, quickTags, action }: Props) {
   const [open, setOpen] = useState(false)
-  const [selectedTags, setSelectedTags] = useState<string[]>(existingTags)
+  const [tagsText, setTagsText] = useState(existingTags.join(", "))
   const [pending, startTransition] = useTransition()
+
+  const activeLower = new Set(parseTagsText(tagsText))
+
+  function toggleTag(tag: string) {
+    const lower = tag.trim().toLowerCase()
+    if (activeLower.has(lower)) {
+      // Tag aus dem Text entfernen
+      const parts = tagsText.split(/[,;\n]/).map((v) => v.trim()).filter(Boolean)
+      const next = parts.filter((p) => p.toLowerCase() !== lower)
+      setTagsText(next.join(", "))
+    } else {
+      // Tag ans Ende anfügen
+      const base = tagsText.trim().replace(/[,;\s]+$/, "")
+      setTagsText(base ? base + ", " + tag : tag)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -23,16 +47,11 @@ export default function ShoppingTagEditor({ itemId, existingTags, quickTags, act
     })
   }
 
-  const suggested = useMemo(
-    () => quickTags.filter((tag) => !selectedTags.includes(tag)),
-    [quickTags, selectedTags]
-  )
-
-  function toggleTag(tag: string) {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]
-    )
-  }
+  // Alle bekannten Chips: zuerst aktive, dann inaktive quickTags
+  const allChips = [
+    ...quickTags.filter((t) => activeLower.has(t.toLowerCase())),
+    ...quickTags.filter((t) => !activeLower.has(t.toLowerCase())),
+  ]
 
   return (
     <>
@@ -71,8 +90,8 @@ export default function ShoppingTagEditor({ itemId, existingTags, quickTags, act
               <div>
                 <p className="text-xs text-gray-500 mb-1">Schnellauswahl</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {[...selectedTags, ...suggested].map((tag) => {
-                    const active = selectedTags.includes(tag)
+                  {allChips.map((tag) => {
+                    const active = activeLower.has(tag.toLowerCase())
                     return (
                       <button
                         key={tag}
@@ -92,14 +111,12 @@ export default function ShoppingTagEditor({ itemId, existingTags, quickTags, act
               </div>
             )}
 
-            {selectedTags.map((tag) => (
-              <input key={tag} type="hidden" name="selectedTags" value={tag} />
-            ))}
-
             <div>
-              <label className="block text-sm font-medium mb-1">Weitere Tags</label>
+              <label className="block text-sm font-medium mb-1">Tags</label>
               <input
                 name="tags"
+                value={tagsText}
+                onChange={(e) => setTagsText(e.target.value)}
                 placeholder="z.B. Rot, 4, Bio"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />

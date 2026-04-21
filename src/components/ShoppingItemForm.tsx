@@ -12,19 +12,34 @@ function normalize(value: string): string {
   return value.trim().toLowerCase()
 }
 
+function parseTagsText(text: string): string[] {
+  return text
+    .split(/[,;\n]/)
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean)
+}
+
 export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }: Props) {
   const [name, setName] = useState("")
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagsText, setTagsText] = useState("")
 
   const availableTags = useMemo(() => {
     const key = normalize(name)
     return tagsByItem[key] ?? []
   }, [name, tagsByItem])
 
+  const activeLower = new Set(parseTagsText(tagsText))
+
   function toggleTag(tag: string) {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]
-    )
+    const lower = tag.trim().toLowerCase()
+    if (activeLower.has(lower)) {
+      const parts = tagsText.split(/[,;\n]/).map((v) => v.trim()).filter(Boolean)
+      const next = parts.filter((p) => p.toLowerCase() !== lower)
+      setTagsText(next.join(", "))
+    } else {
+      const base = tagsText.trim().replace(/[,;\s]+$/, "")
+      setTagsText(base ? base + ", " + tag : tag)
+    }
   }
 
   return (
@@ -36,7 +51,7 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }
           value={name}
           onChange={(e) => {
             setName(e.target.value)
-            setSelectedTags([])
+            setTagsText("")
           }}
           list="shopping-item-suggestions"
           required
@@ -55,7 +70,7 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }
           <p className="text-sm font-medium mb-2">Tags aus früheren Einträgen</p>
           <div className="flex flex-wrap gap-2">
             {availableTags.map((tag) => {
-              const active = selectedTags.includes(tag)
+              const active = activeLower.has(tag.toLowerCase())
               return (
                 <button
                   key={tag}
@@ -72,9 +87,6 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }
               )
             })}
           </div>
-          {selectedTags.map((tag) => (
-            <input key={tag} type="hidden" name="selectedTags" value={tag} />
-          ))}
         </div>
       )}
 
@@ -82,6 +94,8 @@ export default function ShoppingItemForm({ action, nameSuggestions, tagsByItem }
         <label className="block text-sm font-medium mb-1">Tags (optional, kommagetrennt)</label>
         <input
           name="tags"
+          value={tagsText}
+          onChange={(e) => setTagsText(e.target.value)}
           placeholder="z.B. Rot, 4, Bio"
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
