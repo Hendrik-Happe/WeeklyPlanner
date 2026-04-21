@@ -24,13 +24,13 @@ export default async function ShoppingPage() {
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <h1 className="text-xl font-bold mb-1">Einkaufsliste</h1>
         <p className="text-sm text-gray-500">Items mit optionalen Tags wie Menge, Farbe oder Qualität.</p>
-        <div className="mt-3 inline-flex rounded-lg border border-gray-200 overflow-hidden">
+        <div className="mt-3 inline-flex rounded-lg border border-gray-300 overflow-hidden bg-white">
           <form action={setShoppingView}>
             <input type="hidden" name="view" value="LIST" />
             <button
               type="submit"
               className={`px-3 py-1.5 text-sm font-medium ${
-                !isGridView ? "bg-blue-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                !isGridView ? "bg-blue-200 text-black" : "bg-white text-black hover:bg-gray-100"
               }`}
             >
               Liste
@@ -41,7 +41,7 @@ export default async function ShoppingPage() {
             <button
               type="submit"
               className={`px-3 py-1.5 text-sm font-medium ${
-                isGridView ? "bg-blue-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                isGridView ? "bg-blue-200 text-black" : "bg-white text-black hover:bg-gray-100"
               }`}
             >
               Kacheln
