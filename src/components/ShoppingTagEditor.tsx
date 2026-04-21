@@ -58,7 +58,7 @@ export default function ShoppingTagEditor({ itemId, existingTags, quickTags, act
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-2 text-xs text-blue-600 hover:text-blue-700"
+        className="mt-2 text-xs text-blue-700 hover:text-blue-900 underline"
       >
         Tags bearbeiten
       </button>

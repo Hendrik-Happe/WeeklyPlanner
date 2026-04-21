@@ -63,7 +63,7 @@ export default async function ShoppingPage() {
         ) : (
           <div className={isGridView ? "grid grid-cols-2 sm:grid-cols-3 gap-2" : "space-y-2"}>
             {items.map((item) => (
-              <div key={item.id} className="relative rounded-xl border border-gray-100 px-3 py-3 bg-gray-50">
+              <div key={item.id} className="relative rounded-xl px-3 py-3 bg-blue-100 border border-blue-200">
                 <form action={removeShoppingItem} className="absolute inset-0">
                   <input type="hidden" name="itemId" value={item.id} />
                   <button
@@ -76,12 +76,12 @@ export default async function ShoppingPage() {
                   <p className="font-medium text-gray-900">{item.name}</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {item.tags.map((tag) => (
-                      <span key={tag.id} className="text-xs bg-blue-50 text-blue-700 rounded-full px-2 py-0.5 border border-blue-100">
+                    <span key={tag.id} className="text-xs bg-blue-200 text-blue-900 font-medium rounded-full px-2 py-0.5">
                         {tag.value}
                       </span>
                     ))}
                     {item.tags.length === 0 && (
-                      <span className="text-xs text-gray-400">Keine Tags</span>
+                      <span className="text-xs text-gray-500">Keine Tags</span>
                     )}
                   </div>
                 </div>
@@ -110,12 +110,12 @@ export default async function ShoppingPage() {
                 <input type="hidden" name="itemId" value={item.id} />
                 <button
                   type="submit"
-                  className="w-full text-left rounded-xl border border-gray-100 px-3 py-3 bg-gray-50 opacity-60 cursor-pointer hover:opacity-80 transition-opacity"
+                  className="w-full text-left rounded-xl px-3 py-3 bg-red-100 border border-red-200 cursor-pointer hover:bg-red-200 transition-colors"
                 >
-                  <p className="text-sm text-gray-600 line-through">{item.name}</p>
+                  <p className="text-sm text-gray-700 line-through">{item.name}</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {item.tags.map((tag) => (
-                      <span key={tag.id} className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 border border-gray-200">
+                        <span key={tag.id} className="text-xs bg-red-200 text-red-900 font-medium rounded-full px-2 py-0.5">
                         {tag.value}
                       </span>
                     ))}
