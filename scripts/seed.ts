@@ -3,11 +3,29 @@ import bcrypt from "bcryptjs"
 
 const prisma = new PrismaClient()
 
+type UserIdRow = { id: string }
+
 function getPinMinLength(): number {
   const raw = process.env.AUTH_PASSWORD_MIN_LENGTH ?? process.env.AUTH_PIN_MIN_LENGTH
   const parsed = raw ? Number(raw) : NaN
   if (!Number.isFinite(parsed) || parsed < 4) return 6
   return Math.floor(parsed)
+}
+
+function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase()
+}
+
+async function isUsernameTakenInsensitive(username: string): Promise<boolean> {
+  const normalized = normalizeUsername(username)
+  const rows = await prisma.$queryRaw<UserIdRow[]>`
+    SELECT id
+    FROM "User"
+    WHERE lower(username) = ${normalized}
+    LIMIT 1
+  `
+
+  return rows.length > 0
 }
 
 async function main() {
@@ -29,7 +47,7 @@ async function main() {
     throw new Error(`SEED_ADMIN_PASSWORD fehlt oder ist zu kurz. Bitte mindestens ${passwordMinLength} Zeichen angeben.`)
   }
 
-  const duplicate = await prisma.user.findUnique({ where: { username } })
+  const duplicate = await isUsernameTakenInsensitive(username)
   if (duplicate) {
     throw new Error(`Benutzername \"${username}\" existiert bereits. Bitte einen anderen Namen wählen.`)
   }

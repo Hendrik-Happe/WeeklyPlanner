@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import { getPasswordRuleText, isValidPasswordFormat } from "@/lib/security-config"
+import { isUsernameTakenInsensitive } from "@/lib/username"
 
 async function requireSession() {
   const session = await getCurrentSession()
@@ -208,6 +209,10 @@ export async function createUser(formData: FormData) {
 
   if (!username || !password || !isValidPasswordFormat(password)) {
     throw new Error(getPasswordRuleText())
+  }
+
+  if (await isUsernameTakenInsensitive(username)) {
+    throw new Error("Benutzername existiert bereits")
   }
 
   const passwordHash = await bcrypt.hash(password, 12)

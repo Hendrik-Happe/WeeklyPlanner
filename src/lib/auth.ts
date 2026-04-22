@@ -13,6 +13,7 @@ import {
   registerAuthFailure,
 } from "@/lib/auth-rate-limit"
 import { isValidPasswordFormat } from "@/lib/security-config"
+import { findUserIdByUsernameInsensitive, normalizeUsername } from "@/lib/username"
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 365
 const SESSION_UPDATE_AGE = 60 * 60 * 24
@@ -72,17 +73,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!username || !password) return null
         if (!isValidPasswordFormat(password)) return null
 
+        const normalizedUsername = normalizeUsername(username)
+
         const rateLimitEnabled = isAuthRateLimitEnabled()
         const clientIp = getClientIp(request)
         const key = clientIp !== "unknown"
-          ? authRateLimitKey(username, clientIp)
-          : authRateLimitUnknownKey(username, getUserAgentFingerprint(request))
+          ? authRateLimitKey(normalizedUsername, clientIp)
+          : authRateLimitUnknownKey(normalizedUsername, getUserAgentFingerprint(request))
         if (rateLimitEnabled && await isAuthBlocked(key)) {
           return null
         }
 
+        const userId = await findUserIdByUsernameInsensitive(username)
+        if (!userId) {
+          if (rateLimitEnabled) await registerAuthFailure(key)
+          return null
+        }
+
         const user = await prisma.user.findUnique({
-          where: { username },
+          where: { id: userId },
           select: {
             id: true,
             username: true,
