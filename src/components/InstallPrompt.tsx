@@ -12,6 +12,11 @@ function isiOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
+function isAndroid() {
+  if (typeof navigator === "undefined") return false
+  return /Android/i.test(navigator.userAgent)
+}
+
 function isInStandaloneMode() {
   if (typeof window === "undefined") return false
   return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
@@ -42,6 +47,10 @@ export default function InstallPrompt({ appName }: { appName: string }) {
   }, [])
 
   const showIOSHint = useMemo(() => !standalone && !dismissed && !deferredPrompt && isiOS(), [standalone, dismissed, deferredPrompt])
+  const showAndroidFallbackHint = useMemo(
+    () => !standalone && !dismissed && !deferredPrompt && isAndroid() && !isiOS(),
+    [standalone, dismissed, deferredPrompt]
+  )
   const showInstallButton = useMemo(() => !standalone && !dismissed && !!deferredPrompt, [standalone, dismissed, deferredPrompt])
 
   async function handleInstall() {
@@ -51,7 +60,7 @@ export default function InstallPrompt({ appName }: { appName: string }) {
     setDeferredPrompt(null)
   }
 
-  if (!showIOSHint && !showInstallButton) return null
+  if (!showIOSHint && !showAndroidFallbackHint && !showInstallButton) return null
 
   return (
     <div className="fixed left-4 right-4 bottom-24 z-[90] mx-auto max-w-md rounded-2xl border border-blue-200 bg-white/95 p-4 shadow-xl backdrop-blur">
@@ -60,6 +69,8 @@ export default function InstallPrompt({ appName }: { appName: string }) {
           <p className="text-sm font-semibold text-gray-900">{appName} installieren</p>
           {showInstallButton ? (
             <p className="mt-1 text-xs text-gray-600">Installiere die App für schnelleren Zugriff direkt vom Startbildschirm.</p>
+          ) : showAndroidFallbackHint ? (
+            <p className="mt-1 text-xs text-gray-600">In diesem Browser gibt es keinen automatischen Install-Dialog. Über das Browser-Menü und "Zum Startbildschirm hinzufügen" als App installieren.</p>
           ) : (
             <p className="mt-1 text-xs text-gray-600">Auf dem iPhone/iPad über Teilen → "Zum Home-Bildschirm" als App hinzufügen.</p>
           )}
