@@ -3,6 +3,9 @@
 import { signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+
+const showLegalLinks = process.env.NEXT_PUBLIC_ENABLE_LEGAL_PAGES === "true"
 
 export default function LoginPage() {
   const [error, setError] = useState("")
@@ -64,6 +67,17 @@ export default function LoginPage() {
             {loading ? "Anmelden…" : "Anmelden"}
           </button>
         </form>
+        {showLegalLinks && (
+          <p className="mt-5 text-center text-xs text-gray-500">
+            <Link href="/impressum" className="hover:underline">
+              Impressum
+            </Link>
+            {" | "}
+            <Link href="/datenschutz" className="hover:underline">
+              Datenschutz
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )

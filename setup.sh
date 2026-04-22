@@ -92,6 +92,12 @@ ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT" '"#3b82f6"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_ACCENT_SOFT" '"#93c5fd"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL" '"#ffffff"'
 ensure_env_var "NEXT_PUBLIC_APP_ICON_PANEL_SOFT" '"#bfdbfe"'
+ensure_env_var "NEXT_PUBLIC_ENABLE_LEGAL_PAGES" "false"
+ensure_env_var "NEXT_PUBLIC_LEGAL_OWNER_NAME" '""'
+ensure_env_var "NEXT_PUBLIC_LEGAL_STREET" '""'
+ensure_env_var "NEXT_PUBLIC_LEGAL_POSTAL_CODE" '""'
+ensure_env_var "NEXT_PUBLIC_LEGAL_CITY" '""'
+ensure_env_var "NEXT_PUBLIC_LEGAL_EMAIL" '""'
 ensure_env_var "AUTH_PASSWORD_MIN_LENGTH" "$PASSWORD_MIN_LENGTH"
 ensure_env_var "AUTH_RATE_LIMIT_ENABLED" "true"
 ensure_env_var "AUTH_RATE_LIMIT_WINDOW_SECONDS" "300"
@@ -124,6 +130,34 @@ if [ -t 0 ]; then
     prompt_env_var "NEXT_PUBLIC_APP_ICON_ACCENT_SOFT" "Icon Akzentfarbe weich" "#93c5fd"
     prompt_env_var "NEXT_PUBLIC_APP_ICON_PANEL" "Icon Panel-Farbe" "#ffffff"
     prompt_env_var "NEXT_PUBLIC_APP_ICON_PANEL_SOFT" "Icon Panel-Farbe weich" "#bfdbfe"
+  fi
+
+  echo ""
+  echo "⚖️   Rechtliche Hinweise"
+  CURRENT_LEGAL_ENABLED=$(get_env_var "NEXT_PUBLIC_ENABLE_LEGAL_PAGES" "false")
+  CURRENT_LEGAL_ENABLED=$(echo "$CURRENT_LEGAL_ENABLED" | tr '[:upper:]' '[:lower:]')
+  if [ "$CURRENT_LEGAL_ENABLED" = "true" ]; then
+    LEGAL_DEFAULT="J"
+  else
+    LEGAL_DEFAULT="N"
+  fi
+
+  printf "Impressum und Datenschutz anzeigen? [j/%s]: " "$LEGAL_DEFAULT"
+  read -r LEGAL_ENABLED_INPUT
+
+  if [ -z "$LEGAL_ENABLED_INPUT" ]; then
+    LEGAL_ENABLED_INPUT="$LEGAL_DEFAULT"
+  fi
+
+  if [[ "$LEGAL_ENABLED_INPUT" =~ ^([jJ]|[jJ][aA])$ ]]; then
+    set_env_var "NEXT_PUBLIC_ENABLE_LEGAL_PAGES" "true"
+    prompt_env_var "NEXT_PUBLIC_LEGAL_OWNER_NAME" "Name / Anbieter" ""
+    prompt_env_var "NEXT_PUBLIC_LEGAL_STREET" "Strasse + Hausnummer" ""
+    prompt_env_var "NEXT_PUBLIC_LEGAL_POSTAL_CODE" "PLZ" ""
+    prompt_env_var "NEXT_PUBLIC_LEGAL_CITY" "Ort" ""
+    prompt_env_var "NEXT_PUBLIC_LEGAL_EMAIL" "Kontakt-E-Mail" ""
+  else
+    set_env_var "NEXT_PUBLIC_ENABLE_LEGAL_PAGES" "false"
   fi
 
   echo ""
