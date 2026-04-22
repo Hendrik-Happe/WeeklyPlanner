@@ -2,6 +2,14 @@
 
 Familienbasierte Wochenplaner-App für den Raspberry Pi. Verwaltet Aufgaben, Mahlzeiten und Einkaufslisten im Heimnetz. Primär für Mobile-Browser optimiert, funktioniert auch auf dem Desktop.
 
+## Hinweis
+
+Dieses Projekt wurde vollständig KI-generiert.
+
+Es wird keine Haftung für Fehler, Funktionsstörungen, Datenverlust, Sicherheitslücken oder sonstige Schäden übernommen, die sich aus der Nutzung, dem Betrieb oder der Weiterentwicklung dieses Projekts ergeben.
+
+Der Einsatz in produktiven oder öffentlich erreichbaren Umgebungen erfolgt auf eigenes Risiko. Vor einem produktiven Einsatz sollten insbesondere Code, Konfiguration, Authentifizierung, Rechtekonzepte und Sicherheitsmechanismen eigenständig geprüft und getestet werden.
+
 ---
 
 ## Inhaltsverzeichnis
