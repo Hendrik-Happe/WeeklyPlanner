@@ -1,4 +1,12 @@
 import type { NextConfig } from "next";
+import withPWAInit from "next-pwa"
+
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  skipWaiting: true,
+})
 
 const isProd = process.env.NODE_ENV === "production"
 
@@ -33,7 +41,6 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  // PWA: npm install next-pwa und hier konfigurieren wenn bereit
 };
 
-export default nextConfig;
+export default withPWA(nextConfig)
