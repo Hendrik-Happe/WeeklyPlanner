@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { WEBSITE_VERSION } from "@/lib/app-version"
 
 const legal = {
   ownerName: process.env.NEXT_PUBLIC_LEGAL_OWNER_NAME ?? "[Vor- und Nachname]",
@@ -77,6 +78,8 @@ export default function DatenschutzPage() {
         <p className="text-gray-600">
           Dieser Text ist eine technische Vorlage und ersetzt keine individuelle Rechtsberatung.
         </p>
+
+        <p className="text-gray-600">Version der Webseite: {WEBSITE_VERSION}</p>
       </section>
 
       <div className="mt-8 text-sm">
