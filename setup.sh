@@ -62,9 +62,9 @@ prompt_secret() {
   VALUE=""
 
   while [ -z "$VALUE" ]; do
-    printf "%s: " "$LABEL"
-    read -r -s VALUE
-    echo ""
+    printf "%s: " "$LABEL" > /dev/tty
+    read -r -s VALUE < /dev/tty
+    echo "" > /dev/tty
   done
 
   echo "$VALUE"
@@ -81,6 +81,7 @@ fi
 ensure_env_var "NEXT_PUBLIC_APP_NAME" '"WeeklyPlaner"'
 ensure_env_var "NEXT_PUBLIC_APP_SHORT_NAME" '"WeeklyPlaner"'
 ensure_env_var "NEXT_PUBLIC_APP_DESCRIPTION" '"Familien-Wochenplaner"'
+ensure_env_var "DATABASE_URL" '"file:./dev.db"'
 ensure_env_var "NEXT_PUBLIC_APP_THEME_COLOR" '"#3b82f6"'
 ensure_env_var "NEXT_PUBLIC_APP_BACKGROUND_COLOR" '"#f9fafb"'
 ensure_env_var "NEXT_PUBLIC_APP_START_URL" '"/day"'
@@ -134,6 +135,10 @@ if [ -t 0 ]; then
   else
     ADMIN_USERNAME="$INPUT_ADMIN_USERNAME"
   fi
+
+  echo ""
+  echo "Bitte vergib jetzt ein Passwort fuer den initialen Admin-Nutzer."
+  echo "Das Passwort wird fuer den Login in die App verwendet und sollte sicher aufbewahrt werden."
 
   while true; do
     ADMIN_PASSWORD=$(prompt_secret "Admin-Passwort (mindestens ${PASSWORD_MIN_LENGTH} Zeichen)")
