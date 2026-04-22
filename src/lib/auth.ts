@@ -44,6 +44,7 @@ function getUserAgentFingerprint(request?: Request): string {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: shouldTrustProxyHeaders(),
   session: {
     strategy: "jwt",
     maxAge: SESSION_MAX_AGE,
