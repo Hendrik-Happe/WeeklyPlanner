@@ -505,10 +505,24 @@ export async function setMealPlan(formData: FormData) {
   if (!date || !recipeId) throw new Error("Ungültige Eingabe")
 
   await prisma.mealPlan.upsert({
-    where: { date },
+    where: { date_recipeId: { date, recipeId } },
     create: { date, recipeId, assignedById: session.user.id },
-    update: { recipeId, assignedById: session.user.id },
+    update: { assignedById: session.user.id },
   })
+
+  revalidatePath("/meals")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function removeMealPlanEntry(formData: FormData) {
+  await requireSession()
+
+  const date = formData.get("date") as string
+  const recipeId = formData.get("recipeId") as string
+  if (!date || !recipeId) throw new Error("Ungültige Eingabe")
+
+  await prisma.mealPlan.deleteMany({ where: { date, recipeId } })
 
   revalidatePath("/meals")
   revalidatePath("/day")

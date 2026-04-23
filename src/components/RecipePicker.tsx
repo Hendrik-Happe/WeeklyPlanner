@@ -10,6 +10,7 @@ type RecipeOption = {
 type Props = {
   recipes: RecipeOption[]
   defaultRecipeId?: string
+  selectedRecipeIds?: string[]
   name?: string
   compact?: boolean
   submitOnSelect?: boolean
@@ -19,6 +20,7 @@ type Props = {
 export default function RecipePicker({
   recipes,
   defaultRecipeId,
+  selectedRecipeIds,
   name = "recipeId",
   compact = false,
   submitOnSelect = false,
@@ -26,6 +28,9 @@ export default function RecipePicker({
 }: Props) {
   const [query, setQuery] = useState("")
   const [selectedRecipeId, setSelectedRecipeId] = useState(defaultRecipeId ?? "")
+
+  // prefer selectedRecipeIds array if provided
+  const alreadySelected = selectedRecipeIds ?? (defaultRecipeId ? [defaultRecipeId] : [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -63,6 +68,7 @@ export default function RecipePicker({
         >
           {filtered.map((recipe) => {
             const active = selectedRecipeId === recipe.id
+            const alreadyAdded = alreadySelected.includes(recipe.id)
             return (
               <button
                 key={recipe.id}
@@ -75,10 +81,15 @@ export default function RecipePicker({
                 } ${
                   active
                     ? "bg-rose-500 border-rose-500 text-white"
+                    : alreadyAdded
+                    ? "bg-rose-100 border-rose-300 text-rose-700"
                     : "bg-white border-rose-200 text-gray-700 hover:border-rose-300"
                 }`}
               >
                 {recipe.title}
+                {alreadyAdded && !active && (
+                  <span className="ml-1 text-xs opacity-70">✓</span>
+                )}
               </button>
             )
           })}

@@ -153,7 +153,7 @@ model Recipe {
 
 model MealPlan {
   id        String   @id @default(cuid())
-  date      String   @unique // ISO-Datum: "2026-04-21"
+  date      String   // ISO-Datum: "2026-04-21"
   createdAt DateTime @default(now())
 
   recipeId String
@@ -161,6 +161,8 @@ model MealPlan {
 
   assignedById String
   assignedBy   User   @relation("MealPlanAssignedBy", fields: [assignedById], references: [id])
+
+  @@unique([date, recipeId])
 }
 
 model ShoppingItem {

@@ -108,7 +108,7 @@ export default async function WeekPage({
             <div className="mb-2">
               <MealPlanCard
                 dateStr={dateStr}
-                mealPlan={mealPlansByDate.get(dateStr) ?? null}
+                mealPlans={mealPlansByDate.get(dateStr) ?? []}
                 recipes={recipes}
                 compact
               />

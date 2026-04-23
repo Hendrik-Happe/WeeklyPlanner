@@ -9,8 +9,8 @@ export async function getRecipes() {
   })
 }
 
-export async function getMealPlanForDate(date: string) {
-  return prisma.mealPlan.findUnique({
+export async function getMealPlansForDate(date: string) {
+  return prisma.mealPlan.findMany({
     where: { date },
     include: {
       recipe: {
@@ -20,6 +20,7 @@ export async function getMealPlanForDate(date: string) {
       },
       assignedBy: { select: { id: true, username: true } },
     },
+    orderBy: { createdAt: "asc" },
   })
 }
 
@@ -34,7 +35,14 @@ export async function getMealPlansForDates(dates: string[]) {
       },
       assignedBy: { select: { id: true, username: true } },
     },
+    orderBy: { createdAt: "asc" },
   })
 
-  return new Map(entries.map((entry) => [entry.date, entry]))
+  const map = new Map<string, typeof entries>()
+  for (const entry of entries) {
+    const existing = map.get(entry.date) ?? []
+    existing.push(entry)
+    map.set(entry.date, existing)
+  }
+  return map
 }

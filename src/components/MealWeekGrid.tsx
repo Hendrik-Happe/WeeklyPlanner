@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { clearMealPlan } from "@/app/(app)/actions"
+import { removeMealPlanEntry } from "@/app/(app)/actions"
 import MealWeekPickerOverlay from "@/components/MealWeekPickerOverlay"
 
 type Recipe = {
@@ -8,6 +8,7 @@ type Recipe = {
 }
 
 type MealPlanEntry = {
+  id: string
   date: string
   recipe: {
     id: string
@@ -18,7 +19,7 @@ type MealPlanEntry = {
 type Props = {
   days: { date: Date; dateStr: string; isToday: boolean }[]
   recipes: Recipe[]
-  mealPlans: Map<string, MealPlanEntry>
+  mealPlans: Map<string, MealPlanEntry[]>
   weekOffset: number
 }
 
@@ -54,7 +55,7 @@ export default function MealWeekGrid({ days, recipes, mealPlans, weekOffset }: P
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-3">
         {days.map(({ date, dateStr, isToday }) => {
-          const meal = mealPlans.get(dateStr)
+          const meals = mealPlans.get(dateStr) ?? []
           return (
             <div
               key={dateStr}
@@ -73,11 +74,26 @@ export default function MealWeekGrid({ days, recipes, mealPlans, weekOffset }: P
                 </p>
               </div>
 
-              <div className="min-h-12 mb-3">
-                {meal ? (
-                  <p className="text-sm font-medium text-gray-800">{meal.recipe.title}</p>
-                ) : (
+              <div className="min-h-12 mb-3 space-y-1">
+                {meals.length === 0 ? (
                   <p className="text-sm text-gray-400">Noch nichts geplant</p>
+                ) : (
+                  meals.map((meal) => (
+                    <div key={meal.id} className="flex items-center justify-between gap-1">
+                      <p className="text-sm font-medium text-gray-800 truncate">{meal.recipe.title}</p>
+                      <form action={removeMealPlanEntry} className="shrink-0">
+                        <input type="hidden" name="date" value={dateStr} />
+                        <input type="hidden" name="recipeId" value={meal.recipe.id} />
+                        <button
+                          type="submit"
+                          title="Entfernen"
+                          className="text-xs text-gray-400 hover:text-rose-600"
+                        >
+                          ✕
+                        </button>
+                      </form>
+                    </div>
+                  ))
                 )}
               </div>
 
@@ -90,17 +106,8 @@ export default function MealWeekGrid({ days, recipes, mealPlans, weekOffset }: P
                   timeZone: "Europe/Berlin",
                 })}
                 recipes={recipes}
-                defaultRecipeId={meal?.recipe.id}
+                selectedRecipeIds={meals.map((m) => m.recipe.id)}
               />
-
-              {meal && (
-                <form action={clearMealPlan} className="mt-2">
-                  <input type="hidden" name="date" value={dateStr} />
-                  <button type="submit" className="text-xs text-gray-500 hover:text-gray-700">
-                    Entfernen
-                  </button>
-                </form>
-              )}
             </div>
           )
         })}

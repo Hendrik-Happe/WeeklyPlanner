@@ -1,7 +1,7 @@
 import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
-import { getMealPlanForDate, getRecipes } from "@/lib/meals"
+import { getMealPlansForDate, getRecipes } from "@/lib/meals"
 import { formatDate, getTodayInBerlin, getTasksForDate, resolveAssignedTo } from "@/lib/tasks"
 import MealPlanCard from "@/components/MealPlanCard"
 import TaskCard from "@/components/TaskCard"
@@ -22,8 +22,8 @@ export default async function DayPage({
   const today = getTodayInBerlin()
   const dateStr = formatDate(today)
   let tasks = await getTasksForDate(dateStr, session.user.id)
-  const [mealPlan, recipes] = await Promise.all([
-    getMealPlanForDate(dateStr),
+  const [mealPlans, recipes] = await Promise.all([
+    getMealPlansForDate(dateStr),
     getRecipes(),
   ])
 
@@ -48,7 +48,7 @@ export default async function DayPage({
       <p className="text-gray-500 text-sm mb-2 capitalize">{dayLabel}</p>
       <Suspense><FilterBar hideDone={hideDone} hideAssigned={hideAssigned} /></Suspense>
       <div className="mb-4">
-        <MealPlanCard dateStr={dateStr} mealPlan={mealPlan} recipes={recipes} />
+        <MealPlanCard dateStr={dateStr} mealPlans={mealPlans} recipes={recipes} />
       </div>
       {tasks.length === 0 ? (
         <p className="text-gray-400 text-center py-16 text-lg">Keine Aufgaben für heute 🎉</p>
