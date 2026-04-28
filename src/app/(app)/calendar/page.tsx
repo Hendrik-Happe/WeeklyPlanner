@@ -122,6 +122,12 @@ export default async function CalendarPage() {
         </section>
       )}
 
+      {(() => {
+        const nextcloudTargets = discoveredCalendars.filter(
+          (c) => selectedCalendarUrls.includes(c.url),
+        )
+        const hasNextcloud = calendarSync?.oauthAccessToken && nextcloudTargets.length > 0
+        return (
       <section className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
         <h2 className="font-semibold mb-3">Termin hinzufügen</h2>
         <form action={createCalendarEvent} className="space-y-3">
@@ -131,6 +137,23 @@ export default async function CalendarPage() {
             placeholder="Titel"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
           />
+
+          {hasNextcloud ? (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Kalender</label>
+              <select
+                name="calendarTarget"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+              >
+                <option value="local">Lokal (nur in dieser App)</option>
+                {nextcloudTargets.map((c) => (
+                  <option key={c.url} value={c.url}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <input type="hidden" name="calendarTarget" value="local" />
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <input
@@ -167,6 +190,8 @@ export default async function CalendarPage() {
           </button>
         </form>
       </section>
+        )
+      })()}
 
       <section className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
         <h2 className="font-semibold mb-3">Termine</h2>

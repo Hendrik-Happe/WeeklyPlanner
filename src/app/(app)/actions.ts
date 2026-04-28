@@ -1,7 +1,7 @@
 "use server"
 
 import { getCurrentSession } from "@/lib/auth"
-import { discoverNextcloudCalendars, getCalendarSyncSettingsView } from "@/lib/calendar"
+import { createCalendarEventInNextcloud, discoverNextcloudCalendars, getCalendarSyncSettingsView } from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
@@ -568,6 +568,7 @@ export async function createCalendarEvent(formData: FormData) {
   const date = String(formData.get("date") ?? "").trim()
   const startTime = String(formData.get("startTime") ?? "").trim() || null
   const endTime = String(formData.get("endTime") ?? "").trim() || null
+  const calendarTarget = String(formData.get("calendarTarget") ?? "local").trim()
 
   if (!title || !date) throw new Error("Titel und Datum sind erforderlich")
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Ungültiges Datum")
@@ -575,16 +576,35 @@ export async function createCalendarEvent(formData: FormData) {
   if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
   if (startTime && endTime && endTime < startTime) throw new Error("Endzeit muss nach Startzeit liegen")
 
-  await prisma.calendarEvent.create({
-    data: {
-      userId: session.user.id,
+  if (calendarTarget !== "local") {
+    let targetUrl: URL
+    try {
+      targetUrl = new URL(calendarTarget)
+    } catch {
+      throw new Error("Ungültiger Zielkalender")
+    }
+    if (targetUrl.protocol !== "https:" && targetUrl.protocol !== "http:") {
+      throw new Error("Ungültiger Zielkalender")
+    }
+    await createCalendarEventInNextcloud(session.user.id, calendarTarget, {
       title,
       description,
       date,
       startTime,
       endTime,
-    },
-  })
+    })
+  } else {
+    await prisma.calendarEvent.create({
+      data: {
+        userId: session.user.id,
+        title,
+        description,
+        date,
+        startTime,
+        endTime,
+      },
+    })
+  }
 
   revalidatePath("/calendar")
 }

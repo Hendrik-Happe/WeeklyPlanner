@@ -585,6 +585,109 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
   }
 }
 
+function escapeIcsText(text: string): string {
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\n/g, "\\n")
+}
+
+function buildIcsContent(args: {
+  uid: string
+  title: string
+  description: string | null
+  date: string
+  startTime: string | null
+  endTime: string | null
+}): string {
+  const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z"
+  const dateCompact = args.date.replace(/-/g, "")
+
+  let dtStart: string
+  let dtEnd: string
+
+  if (args.startTime) {
+    const startCompact = args.startTime.replace(":", "") + "00"
+    dtStart = `DTSTART;TZID=Europe/Berlin:${dateCompact}T${startCompact}`
+
+    if (args.endTime) {
+      const endCompact = args.endTime.replace(":", "") + "00"
+      dtEnd = `DTEND;TZID=Europe/Berlin:${dateCompact}T${endCompact}`
+    } else {
+      const [hh, mm] = args.startTime.split(":").map(Number)
+      const endHH = String((hh + 1) % 24).padStart(2, "0")
+      const endMM = String(mm).padStart(2, "0")
+      dtEnd = `DTEND;TZID=Europe/Berlin:${dateCompact}T${endHH}${endMM}00`
+    }
+  } else {
+    dtStart = `DTSTART;VALUE=DATE:${dateCompact}`
+    const nextDay = new Date(args.date)
+    nextDay.setDate(nextDay.getDate() + 1)
+    const nextDayCompact = nextDay.toISOString().slice(0, 10).replace(/-/g, "")
+    dtEnd = `DTEND;VALUE=DATE:${nextDayCompact}`
+  }
+
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//WeeklyPlaner//EN",
+    "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    `UID:${args.uid}@weeklyplaner`,
+    `DTSTAMP:${now}`,
+    dtStart,
+    dtEnd,
+    `SUMMARY:${escapeIcsText(args.title)}`,
+  ]
+
+  if (args.description) {
+    lines.push(`DESCRIPTION:${escapeIcsText(args.description)}`)
+  }
+
+  lines.push("END:VEVENT", "END:VCALENDAR")
+  return lines.join("\r\n") + "\r\n"
+}
+
+export async function createCalendarEventInNextcloud(
+  userId: string,
+  calendarUrl: string,
+  event: {
+    title: string
+    description: string | null
+    date: string
+    startTime: string | null
+    endTime: string | null
+  },
+): Promise<void> {
+  const sync = await getCalendarSyncSetting(userId)
+  if (!sync) throw new Error("Nextcloud nicht konfiguriert")
+
+  const token = await getValidNextcloudAccessToken(userId, sync)
+  if (!token) throw new Error("Kein gültiger Nextcloud-Token")
+
+  const uid = crypto.randomUUID()
+  const icsContent = buildIcsContent({ uid, ...event })
+
+  // Strip ?export and trailing slashes to get the raw CalDAV collection URL
+  const baseUrl = calendarUrl.replace(/\?.*$/, "").replace(/\/+$/, "")
+  const putUrl = sanitizeCalendarUrl(`${baseUrl}/${uid}.ics`)
+
+  const response = await fetch(putUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "text/calendar; charset=utf-8",
+    },
+    body: icsContent,
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Nextcloud-Fehler beim Anlegen des Termins: ${response.status}`)
+  }
+}
+
 export function getCalendarRangeAroundToday(daysBefore = 7, daysAfter = 30) {
   const today = getTodayInBerlin()
   const fromDate = new Date(today)
