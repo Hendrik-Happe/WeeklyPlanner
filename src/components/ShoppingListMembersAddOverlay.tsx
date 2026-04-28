@@ -13,6 +13,7 @@ type Props = {
   removeAction: (formData: FormData) => Promise<void>
   shareAllAction: (formData: FormData) => Promise<void>
   unshareAllAction: (formData: FormData) => Promise<void>
+  deleteAction: (formData: FormData) => Promise<void>
   listId: string
   users: UserOption[]
   members: UserOption[]
@@ -24,6 +25,7 @@ export default function ShoppingListMembersAddOverlay({
   removeAction,
   shareAllAction,
   unshareAllAction,
+  deleteAction,
   listId,
   users,
   members,
@@ -73,6 +75,21 @@ export default function ShoppingListMembersAddOverlay({
     startTransition(async () => {
       await unshareAllAction(formData)
       setOpen(false)
+      router.refresh()
+    })
+  }
+
+  function handleDeleteList() {
+    const shouldDelete = window.confirm("Liste wirklich löschen? Dieser Schritt kann nicht rückgängig gemacht werden.")
+    if (!shouldDelete) return
+
+    const formData = new FormData()
+    formData.set("listId", listId)
+
+    startTransition(async () => {
+      await deleteAction(formData)
+      setOpen(false)
+      router.push("/shopping")
       router.refresh()
     })
   }
@@ -185,6 +202,15 @@ export default function ShoppingListMembersAddOverlay({
                   </button>
                 </>
               )}
+
+              <button
+                type="button"
+                onClick={handleDeleteList}
+                disabled={pending}
+                className="w-full rounded-lg border border-red-200 bg-red-50 text-red-800 py-2.5 text-sm font-semibold hover:bg-red-100 disabled:opacity-60"
+              >
+                Liste löschen
+              </button>
             </form>
           </div>
         </div>

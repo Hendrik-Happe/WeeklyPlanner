@@ -1201,3 +1201,26 @@ export async function unshareShoppingListWithAll(formData: FormData) {
 
   revalidatePath("/shopping")
 }
+
+export async function deleteShoppingList(formData: FormData) {
+  const session = await requireSession()
+
+  const listId = String(formData.get("listId") ?? "").trim()
+  if (!listId) throw new Error("Liste fehlt")
+
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: listId },
+    select: { id: true, createdById: true },
+  })
+
+  if (!list) throw new Error("Liste nicht gefunden")
+  if (list.createdById !== session.user.id) {
+    throw new Error("Nur der Ersteller darf die Liste löschen")
+  }
+
+  await prisma.shoppingList.delete({
+    where: { id: listId },
+  })
+
+  revalidatePath("/shopping")
+}

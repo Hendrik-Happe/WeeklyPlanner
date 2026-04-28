@@ -1,6 +1,6 @@
 import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { addShoppingItem, addShoppingListMembers, createShoppingList, removeShoppingItem, removeShoppingListMember, restoreShoppingItem, setShoppingView, shareShoppingListWithAll, unshareShoppingListWithAll, updateShoppingItemTags } from "@/app/(app)/actions"
+import { addShoppingItem, addShoppingListMembers, createShoppingList, deleteShoppingList, removeShoppingItem, removeShoppingListMember, restoreShoppingItem, setShoppingView, shareShoppingListWithAll, unshareShoppingListWithAll, updateShoppingItemTags } from "@/app/(app)/actions"
 import ShoppingAddOverlay from "@/components/ShoppingAddOverlay"
 import ShoppingListAddOverlay from "@/components/ShoppingListAddOverlay"
 import ShoppingListMembersAddOverlay from "@/components/ShoppingListMembersAddOverlay"
@@ -84,6 +84,7 @@ export default async function ShoppingPage({
               removeAction={removeShoppingListMember}
               shareAllAction={shareShoppingListWithAll}
               unshareAllAction={unshareShoppingListWithAll}
+              deleteAction={deleteShoppingList}
               listId={activeList.id}
               users={addableUsers}
               members={currentMembers}
