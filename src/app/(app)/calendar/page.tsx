@@ -3,7 +3,7 @@ import {
   refreshNextcloudSharedCalendars,
   updateSelectedNextcloudCalendars,
 } from "@/app/(app)/actions"
-import CreateCalendarEventForm from "@/components/CreateCalendarEventForm"
+import CreateCalendarEventModal from "@/components/CreateCalendarEventModal"
 import NextcloudEventModalActions from "@/components/NextcloudEventModalActions"
 import { getCurrentSession } from "@/lib/auth"
 import {
@@ -230,12 +230,14 @@ export default async function CalendarPage({
         const hasNextcloud = !!(calendarSync?.oauthAccessToken && nextcloudTargets.length > 0)
         return (
           <section className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-            <h2 className="font-semibold mb-3">Termin hinzufügen</h2>
-            <CreateCalendarEventForm
-              today={today}
-              hasNextcloud={hasNextcloud}
-              nextcloudTargets={nextcloudTargets}
-            />
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Neuer Termin</h2>
+              <CreateCalendarEventModal
+                today={today}
+                hasNextcloud={hasNextcloud}
+                nextcloudTargets={nextcloudTargets}
+              />
+            </div>
           </section>
         )
       })()}
