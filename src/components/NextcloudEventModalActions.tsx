@@ -29,7 +29,7 @@ export default function NextcloudEventModalActions(props: Props) {
           Bearbeiten
         </button>
 
-        <form action={deleteNextcloudCalendarEvent}>
+        <form action={deleteNextcloudCalendarEvent} className="contents">
           <input type="hidden" name="eventId" value={props.eventId} />
           <input type="hidden" name="calendarUrl" value={props.calendarUrl} />
           <button
