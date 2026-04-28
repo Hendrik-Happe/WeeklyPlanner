@@ -172,9 +172,12 @@ function toDateParts(raw: string): { date: string; time: string | null; isDateOn
 }
 
 function addDaysToIsoDate(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00`)
-  d.setDate(d.getDate() + days)
-  return formatDate(d)
+  const [yyyy, mm, dd] = isoDate.split("-").map(Number)
+  const d = new Date(Date.UTC(yyyy, mm - 1, dd + days))
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0")
+  const day = String(d.getUTCDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
 }
 
 function parseIcsEvents(icsText: string): ExternalCalendarEvent[] {
@@ -657,9 +660,8 @@ function buildIcsContent(args: {
     }
   } else {
     dtStart = `DTSTART;VALUE=DATE:${dateCompact}`
-    const nextDay = new Date((args.endDate ?? args.date) + "T00:00:00")
-    nextDay.setDate(nextDay.getDate() + 1)
-    const nextDayCompact = nextDay.toISOString().slice(0, 10).replace(/-/g, "")
+    const nextDayIso = addDaysToIsoDate(args.endDate ?? args.date, 1)
+    const nextDayCompact = nextDayIso.replace(/-/g, "")
     dtEnd = `DTEND;VALUE=DATE:${nextDayCompact}`
   }
 
