@@ -593,6 +593,19 @@ function escapeIcsText(text: string): string {
     .replace(/\n/g, "\\n")
 }
 
+function escapeXmlText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+}
+
+function normalizeCalendarCollectionUrl(calendarUrl: string): string {
+  return sanitizeCalendarUrl(calendarUrl.replace(/\?.*$/, "").replace(/\/+$/, "") + "/")
+}
+
 function buildIcsContent(args: {
   uid: string
   title: string
@@ -634,7 +647,7 @@ function buildIcsContent(args: {
     "PRODID:-//WeeklyPlaner//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
-    `UID:${args.uid}@weeklyplaner`,
+    `UID:${args.uid}`,
     `DTSTAMP:${now}`,
     dtStart,
     dtEnd,
@@ -649,6 +662,64 @@ function buildIcsContent(args: {
   return lines.join("\r\n") + "\r\n"
 }
 
+async function getNextcloudBearerToken(userId: string): Promise<string> {
+  const sync = await getCalendarSyncSetting(userId)
+  if (!sync) throw new Error("Nextcloud nicht konfiguriert")
+
+  const token = await getValidNextcloudAccessToken(userId, sync)
+  if (!token) throw new Error("Kein gültiger Nextcloud-Token")
+  return token
+}
+
+async function findNextcloudEventHrefByUid(args: {
+  userId: string
+  calendarUrl: string
+  uid: string
+}): Promise<string | null> {
+  const token = await getNextcloudBearerToken(args.userId)
+  const collectionUrl = normalizeCalendarCollectionUrl(args.calendarUrl)
+
+  const response = await fetch(collectionUrl, {
+    method: "REPORT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Depth: "1",
+      "Content-Type": "application/xml; charset=utf-8",
+      Accept: "application/xml,text/xml;q=0.9,*/*;q=0.8",
+    },
+    body: `<?xml version="1.0" encoding="UTF-8"?>
+<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop>
+    <d:getetag />
+  </d:prop>
+  <c:filter>
+    <c:comp-filter name="VCALENDAR">
+      <c:comp-filter name="VEVENT">
+        <c:prop-filter name="UID">
+          <c:text-match collation="i;octet">${escapeXmlText(args.uid)}</c:text-match>
+        </c:prop-filter>
+      </c:comp-filter>
+    </c:comp-filter>
+  </c:filter>
+</c:calendar-query>`,
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Nextcloud-Fehler bei Eventsuche: ${response.status}`)
+  }
+
+  const xml = await response.text()
+  const hrefMatch = xml.match(/<[^>]*href>([\s\S]*?)<\/[^>]*href>/i)
+  if (!hrefMatch) return null
+
+  const href = decodeXmlEntities(hrefMatch[1].trim())
+  if (!href) return null
+
+  const eventUrl = sanitizeCalendarUrl(new URL(href, collectionUrl).toString())
+  return eventUrl
+}
+
 export async function createCalendarEventInNextcloud(
   userId: string,
   calendarUrl: string,
@@ -660,18 +731,15 @@ export async function createCalendarEventInNextcloud(
     endTime: string | null
   },
 ): Promise<void> {
-  const sync = await getCalendarSyncSetting(userId)
-  if (!sync) throw new Error("Nextcloud nicht konfiguriert")
+  const token = await getNextcloudBearerToken(userId)
 
-  const token = await getValidNextcloudAccessToken(userId, sync)
-  if (!token) throw new Error("Kein gültiger Nextcloud-Token")
-
-  const uid = crypto.randomUUID()
+  const uid = `${crypto.randomUUID()}@weeklyplaner`
   const icsContent = buildIcsContent({ uid, ...event })
 
   // Strip ?export and trailing slashes to get the raw CalDAV collection URL
-  const baseUrl = calendarUrl.replace(/\?.*$/, "").replace(/\/+$/, "")
-  const putUrl = sanitizeCalendarUrl(`${baseUrl}/${uid}.ics`)
+  const baseUrl = normalizeCalendarCollectionUrl(calendarUrl).replace(/\/+$/, "")
+  const fileId = uid.split("@")[0]
+  const putUrl = sanitizeCalendarUrl(`${baseUrl}/${encodeURIComponent(fileId)}.ics`)
 
   const response = await fetch(putUrl, {
     method: "PUT",
@@ -685,6 +753,68 @@ export async function createCalendarEventInNextcloud(
 
   if (!response.ok) {
     throw new Error(`Nextcloud-Fehler beim Anlegen des Termins: ${response.status}`)
+  }
+}
+
+export async function updateCalendarEventInNextcloud(
+  userId: string,
+  calendarUrl: string,
+  eventId: string,
+  event: {
+    title: string
+    description: string | null
+    date: string
+    startTime: string | null
+    endTime: string | null
+  },
+): Promise<void> {
+  const token = await getNextcloudBearerToken(userId)
+  const eventUrl = await findNextcloudEventHrefByUid({
+    userId,
+    calendarUrl,
+    uid: eventId,
+  })
+  if (!eventUrl) throw new Error("Nextcloud-Termin nicht gefunden")
+
+  const icsContent = buildIcsContent({ uid: eventId, ...event })
+  const response = await fetch(eventUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "text/calendar; charset=utf-8",
+    },
+    body: icsContent,
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Nextcloud-Fehler beim Bearbeiten des Termins: ${response.status}`)
+  }
+}
+
+export async function deleteCalendarEventInNextcloud(
+  userId: string,
+  calendarUrl: string,
+  eventId: string,
+): Promise<void> {
+  const token = await getNextcloudBearerToken(userId)
+  const eventUrl = await findNextcloudEventHrefByUid({
+    userId,
+    calendarUrl,
+    uid: eventId,
+  })
+  if (!eventUrl) throw new Error("Nextcloud-Termin nicht gefunden")
+
+  const response = await fetch(eventUrl, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Nextcloud-Fehler beim Löschen des Termins: ${response.status}`)
   }
 }
 

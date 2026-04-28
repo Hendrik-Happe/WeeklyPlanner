@@ -4,6 +4,7 @@ import {
   refreshNextcloudSharedCalendars,
   updateSelectedNextcloudCalendars,
 } from "@/app/(app)/actions"
+import NextcloudEventModalActions from "@/components/NextcloudEventModalActions"
 import { getCurrentSession } from "@/lib/auth"
 import {
   getCalendarEventsForRange,
@@ -423,6 +424,18 @@ export default async function CalendarPage({
                               Entfernen
                             </button>
                           </form>
+                        )}
+
+                        {event.source === "NEXTCLOUD" && event.calendarUrl && (
+                          <NextcloudEventModalActions
+                            eventId={event.id}
+                            calendarUrl={event.calendarUrl}
+                            title={event.title}
+                            description={event.description}
+                            date={event.date}
+                            startTime={event.startTime}
+                            endTime={event.endTime}
+                          />
                         )}
                       </div>
                     </div>

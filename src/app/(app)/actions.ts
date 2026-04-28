@@ -1,7 +1,13 @@
 "use server"
 
 import { getCurrentSession } from "@/lib/auth"
-import { createCalendarEventInNextcloud, discoverNextcloudCalendars, getCalendarSyncSettingsView } from "@/lib/calendar"
+import {
+  createCalendarEventInNextcloud,
+  deleteCalendarEventInNextcloud,
+  discoverNextcloudCalendars,
+  getCalendarSyncSettingsView,
+  updateCalendarEventInNextcloud,
+} from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
@@ -576,6 +582,9 @@ export async function createCalendarEvent(formData: FormData) {
   if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
   if (startTime && endTime && endTime < startTime) throw new Error("Endzeit muss nach Startzeit liegen")
 
+  const { discoveredCalendars } = await getCalendarSyncSettingsView(session.user.id)
+  const allowedCalendarUrls = new Set(discoveredCalendars.map((entry) => entry.url))
+
   if (calendarTarget !== "local") {
     let targetUrl: URL
     try {
@@ -585,6 +594,9 @@ export async function createCalendarEvent(formData: FormData) {
     }
     if (targetUrl.protocol !== "https:" && targetUrl.protocol !== "http:") {
       throw new Error("Ungültiger Zielkalender")
+    }
+    if (!allowedCalendarUrls.has(calendarTarget)) {
+      throw new Error("Zielkalender ist nicht freigegeben")
     }
     await createCalendarEventInNextcloud(session.user.id, calendarTarget, {
       title,
@@ -616,6 +628,58 @@ export async function deleteCalendarEvent(formData: FormData) {
   if (!id) throw new Error("Ungültige Eingabe")
 
   await prisma.calendarEvent.deleteMany({ where: { id, userId: session.user.id } })
+
+  revalidatePath("/calendar")
+}
+
+export async function updateNextcloudCalendarEvent(formData: FormData) {
+  const session = await requireSession()
+
+  const eventId = String(formData.get("eventId") ?? "").trim()
+  const calendarUrl = String(formData.get("calendarUrl") ?? "").trim()
+  const title = String(formData.get("title") ?? "").trim()
+  const description = String(formData.get("description") ?? "").trim() || null
+  const date = String(formData.get("date") ?? "").trim()
+  const startTime = String(formData.get("startTime") ?? "").trim() || null
+  const endTime = String(formData.get("endTime") ?? "").trim() || null
+
+  if (!eventId || !calendarUrl || !title || !date) throw new Error("Ungültige Eingabe")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Ungültiges Datum")
+  if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) throw new Error("Ungültige Startzeit")
+  if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
+  if (startTime && endTime && endTime < startTime) throw new Error("Endzeit muss nach Startzeit liegen")
+
+  const { discoveredCalendars } = await getCalendarSyncSettingsView(session.user.id)
+  const allowedCalendarUrls = new Set(discoveredCalendars.map((entry) => entry.url))
+  if (!allowedCalendarUrls.has(calendarUrl)) {
+    throw new Error("Zielkalender ist nicht freigegeben")
+  }
+
+  await updateCalendarEventInNextcloud(session.user.id, calendarUrl, eventId, {
+    title,
+    description,
+    date,
+    startTime,
+    endTime,
+  })
+
+  revalidatePath("/calendar")
+}
+
+export async function deleteNextcloudCalendarEvent(formData: FormData) {
+  const session = await requireSession()
+
+  const eventId = String(formData.get("eventId") ?? "").trim()
+  const calendarUrl = String(formData.get("calendarUrl") ?? "").trim()
+  if (!eventId || !calendarUrl) throw new Error("Ungültige Eingabe")
+
+  const { discoveredCalendars } = await getCalendarSyncSettingsView(session.user.id)
+  const allowedCalendarUrls = new Set(discoveredCalendars.map((entry) => entry.url))
+  if (!allowedCalendarUrls.has(calendarUrl)) {
+    throw new Error("Zielkalender ist nicht freigegeben")
+  }
+
+  await deleteCalendarEventInNextcloud(session.user.id, calendarUrl, eventId)
 
   revalidatePath("/calendar")
 }
