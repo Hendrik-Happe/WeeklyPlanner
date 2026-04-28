@@ -34,6 +34,7 @@ model User {
   shoppingListMemberships ShoppingListMember[]
   calendarEvents CalendarEvent[]
   calendarSyncSetting CalendarSyncSetting?
+  calendarEventShares CalendarEventShare[]
 }
 
 model AuthRateLimit {
@@ -223,7 +224,20 @@ model CalendarEvent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  shares      CalendarEventShare[]
+
   @@index([userId, date])
+}
+
+model CalendarEventShare {
+  id        String        @id @default(cuid())
+  eventId   String
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([eventId, userId])
 }
 
 model CalendarSyncSetting {

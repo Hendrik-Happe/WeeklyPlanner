@@ -501,7 +501,6 @@ async function fetchExternalEventsFromUrl(args: {
 export async function getCalendarEventsForRange(userId: string, from: string, to: string) {
   const localEvents = await prisma.calendarEvent.findMany({
     where: {
-      userId,
       AND: [
         { date: { lte: to } },
         {
@@ -510,7 +509,18 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
             { endDate: { gte: from } },
           ],
         },
+        {
+          OR: [
+            { userId },
+            { shares: { some: { userId } } },
+          ],
+        },
       ],
+    },
+    include: {
+      shares: {
+        include: { user: { select: { id: true, username: true } } },
+      },
     },
     orderBy: [{ date: "asc" }, { startTime: "asc" }, { createdAt: "asc" }],
   })
@@ -869,29 +879,41 @@ export type CalendarCombinedEvent = {
   calendarUrl: string | null
   calendarName: string | null
   calendarColor: string | null
+  createdById: string | null
+  sharedWith: { id: string; username: string }[] | null
 }
 
 export function mergeCalendarEvents(
   localEvents: Array<{
     id: string
+    userId: string
     title: string
     description: string | null
     date: string
     endDate: string | null
     startTime: string | null
     endTime: string | null
+    shares: { userId: string; user: { id: string; username: string } }[]
   }>,
   externalEvents: ExternalCalendarEvent[],
 ): CalendarCombinedEvent[] {
   return [
     ...localEvents.map((event) => ({
-      ...event,
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      endDate: event.endDate,
+      startTime: event.startTime,
+      endTime: event.endTime,
       source: "LOCAL" as const,
       calendarUrl: null,
       calendarName: null,
       calendarColor: null,
+      createdById: event.userId,
+      sharedWith: event.shares.map((s) => s.user),
     })),
-    ...externalEvents,
+    ...externalEvents.map((e) => ({ ...e, createdById: null, sharedWith: null })),
   ].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date)
     if ((a.startTime ?? "") !== (b.startTime ?? "")) return (a.startTime ?? "").localeCompare(b.startTime ?? "")

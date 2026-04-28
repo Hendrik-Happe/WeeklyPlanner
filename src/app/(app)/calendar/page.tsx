@@ -1,9 +1,9 @@
 import {
-  deleteCalendarEvent,
   refreshNextcloudSharedCalendars,
   updateSelectedNextcloudCalendars,
 } from "@/app/(app)/actions"
 import CreateCalendarEventModal from "@/components/CreateCalendarEventModal"
+import LocalEventModalActions from "@/components/LocalEventModalActions"
 import NextcloudEventModalActions from "@/components/NextcloudEventModalActions"
 import { getCurrentSession } from "@/lib/auth"
 import {
@@ -12,6 +12,7 @@ import {
   getCalendarSyncSettingsView,
   mergeCalendarEvents,
 } from "@/lib/calendar"
+import { prisma } from "@/lib/prisma"
 import { formatDate, getTodayInBerlin } from "@/lib/tasks"
 import Link from "next/link"
 import { redirect } from "next/navigation"
@@ -111,11 +112,14 @@ export default async function CalendarPage({
   const weekLabel = `KW ${getISOWeek(weekDays[0])}`
   const { sync: calendarSync, discoveredCalendars, selectedCalendarUrls } =
     await getCalendarSyncSettingsView(session.user.id)
-  const { localEvents, externalEvents, syncError } = await getCalendarEventsForRange(
-    session.user.id,
-    from,
-    to,
-  )
+  const [{ localEvents, externalEvents, syncError }, allUsers] = await Promise.all([
+    getCalendarEventsForRange(session.user.id, from, to),
+    prisma.user.findMany({
+      where: { id: { not: session.user.id } },
+      select: { id: true, username: true },
+      orderBy: { username: "asc" },
+    }),
+  ])
   const events = mergeCalendarEvents(localEvents, externalEvents)
 
   const grouped = new Map<string, typeof events>()
@@ -366,15 +370,18 @@ export default async function CalendarPage({
                           )}
                         </div>
                         {event.source === "LOCAL" && (
-                          <form action={deleteCalendarEvent}>
-                            <input type="hidden" name="eventId" value={event.id} />
-                            <button
-                              type="submit"
-                              className="text-xs text-gray-500 hover:text-red-600"
-                            >
-                              Entfernen
-                            </button>
-                          </form>
+                          <LocalEventModalActions
+                            eventId={event.id}
+                            title={event.title}
+                            description={event.description}
+                            date={event.date}
+                            endDate={event.endDate}
+                            startTime={event.startTime}
+                            endTime={event.endTime}
+                            isCreator={event.createdById === session.user.id}
+                            sharedWith={event.sharedWith ?? []}
+                            allUsers={allUsers}
+                          />
                         )}
 
                         {event.source === "NEXTCLOUD" && event.calendarUrl && (

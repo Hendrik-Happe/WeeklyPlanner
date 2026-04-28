@@ -647,6 +647,81 @@ export async function deleteCalendarEvent(formData: FormData) {
   revalidatePath("/week")
 }
 
+export async function updateLocalCalendarEvent(formData: FormData) {
+  const session = await requireSession()
+
+  const id = String(formData.get("eventId") ?? "").trim()
+  const title = String(formData.get("title") ?? "").trim()
+  const description = String(formData.get("description") ?? "").trim() || null
+  const date = String(formData.get("date") ?? "").trim()
+  const endDateInput = String(formData.get("endDate") ?? "").trim()
+  const isAllDay = formData.get("isAllDay") === "on"
+  const startTimeInput = String(formData.get("startTime") ?? "").trim() || null
+  const endTimeInput = String(formData.get("endTime") ?? "").trim() || null
+  const endDate = endDateInput || null
+  const startTime = isAllDay ? null : startTimeInput
+  const endTime = isAllDay ? null : endTimeInput
+
+  if (!id || !title || !date) throw new Error("Ungültige Eingabe")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Ungültiges Datum")
+  if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) throw new Error("Ungültiges Enddatum")
+  if (endDate && endDate < date) throw new Error("Enddatum muss am oder nach dem Startdatum liegen")
+  if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) throw new Error("Ungültige Startzeit")
+  if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
+
+  await prisma.calendarEvent.updateMany({
+    where: { id, userId: session.user.id },
+    data: { title, description, date, endDate, startTime, endTime },
+  })
+
+  revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function addCalendarEventShare(formData: FormData) {
+  const session = await requireSession()
+
+  const eventId = String(formData.get("eventId") ?? "").trim()
+  const userId = String(formData.get("userId") ?? "").trim()
+  if (!eventId || !userId) throw new Error("Ungültige Eingabe")
+  if (userId === session.user.id) throw new Error("Sich selbst kann man nicht hinzufügen")
+
+  const event = await prisma.calendarEvent.findFirst({
+    where: { id: eventId, userId: session.user.id },
+  })
+  if (!event) throw new Error("Termin nicht gefunden oder keine Berechtigung")
+
+  await prisma.calendarEventShare.upsert({
+    where: { eventId_userId: { eventId, userId } },
+    update: {},
+    create: { eventId, userId },
+  })
+
+  revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
+export async function removeCalendarEventShare(formData: FormData) {
+  const session = await requireSession()
+
+  const eventId = String(formData.get("eventId") ?? "").trim()
+  const userId = String(formData.get("userId") ?? "").trim()
+  if (!eventId || !userId) throw new Error("Ungültige Eingabe")
+
+  const event = await prisma.calendarEvent.findFirst({
+    where: { id: eventId, userId: session.user.id },
+  })
+  if (!event) throw new Error("Termin nicht gefunden oder keine Berechtigung")
+
+  await prisma.calendarEventShare.deleteMany({ where: { eventId, userId } })
+
+  revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
+}
+
 export async function updateNextcloudCalendarEvent(formData: FormData) {
   const session = await requireSession()
 
