@@ -7,6 +7,8 @@ import { formatDate, getTodayInBerlin, getTasksForDate, resolveAssignedTo } from
 import MealPlanCard from "@/components/MealPlanCard"
 import TaskCard from "@/components/TaskCard"
 import FilterBar from "@/components/FilterBar"
+import NewTaskModal from "@/components/NewTaskModal"
+import { createTask } from "@/app/(app)/actions"
 import { redirect } from "next/navigation"
 
 function formatTimeRange(startTime: string | null, endTime: string | null, date: string, endDate: string | null): string {
@@ -55,7 +57,10 @@ export default async function DayPage({
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-xl font-bold mb-1">Heute</h1>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">Heute</h1>
+        <NewTaskModal action={createTask} users={users ?? []} isAdmin={isAdmin} />
+      </div>
       <p className="text-gray-500 text-sm mb-2 capitalize">{dayLabel}</p>
       <Suspense><FilterBar hideDone={hideDone} hideAssigned={hideAssigned} /></Suspense>
       <div className="mb-4">

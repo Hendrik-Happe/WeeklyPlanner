@@ -8,6 +8,8 @@ import { getMealPlansForDates, getRecipes } from "@/lib/meals"
 import TaskCard from "@/components/TaskCard"
 import WeekNav from "@/components/WeekNav"
 import FilterBar from "@/components/FilterBar"
+import NewTaskModal from "@/components/NewTaskModal"
+import { createTask } from "@/app/(app)/actions"
 import { redirect } from "next/navigation"
 
 function formatTimeRange(startTime: string | null, endTime: string | null, date: string, endDate: string | null): string {
@@ -97,7 +99,10 @@ export default async function WeekPage({
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <WeekNav week={weekOffset} label={weekLabel} />
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <WeekNav week={weekOffset} label={weekLabel} />
+        <NewTaskModal action={createTask} users={users ?? []} isAdmin={isAdmin} />
+      </div>
       <Suspense><FilterBar hideDone={hideDone} hideAssigned={hideAssigned} /></Suspense>
       <div className="space-y-3">
         {tasksByDay.map(({ date, dateStr, tasks }) => (

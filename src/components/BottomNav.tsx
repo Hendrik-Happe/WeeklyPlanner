@@ -10,7 +10,6 @@ const BASE_ITEMS = [
   { href: "/meals", label: "Essen", icon: "🍽️" },
   { href: "/shopping", label: "Listen", icon: "📋" },
   { href: "/my-tasks", label: "Meine", icon: "✅" },
-  { href: "/tasks/new", label: "Neu", icon: "➕" },
   { href: "/settings", label: "Konto", icon: "👤" },
 ]
 
