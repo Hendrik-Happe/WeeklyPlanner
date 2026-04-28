@@ -127,10 +127,11 @@ export default async function SettingsPage({
                   <form action={updateSelectedNextcloudCalendars} className="space-y-2">
                     {discoveredCalendars.map((calendar) => {
                       const checked = selectedCalendarUrls.includes(calendar.url)
+                      const dotColor = calendar.color ?? "#9ca3af"
                       return (
                         <label
                           key={calendar.url}
-                          className="flex items-center gap-2 text-sm text-gray-700"
+                          className="flex items-center gap-2 text-sm text-gray-700 rounded-md px-2 py-1.5 border border-gray-200 bg-white cursor-pointer"
                         >
                           <input
                             type="checkbox"
@@ -139,10 +140,10 @@ export default async function SettingsPage({
                             defaultChecked={checked}
                           />
                           <span
-                            className="inline-block w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: calendar.color ?? "#9ca3af" }}
+                            className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: dotColor }}
                           />
-                          <span>{calendar.name}</span>
+                          <span className="font-medium text-gray-800">{calendar.name}</span>
                         </label>
                       )
                     })}

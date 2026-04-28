@@ -9,12 +9,46 @@ type ExternalCalendarEvent = {
   startTime: string | null
   endTime: string | null
   source: "NEXTCLOUD"
+  calendarUrl: string | null
+  calendarName: string | null
+  calendarColor: string | null
 }
 
 export type DiscoveredNextcloudCalendar = {
   url: string
   name: string
   color: string | null
+}
+
+function normalizeCalendarColor(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const value = raw.trim()
+  if (!value) return null
+
+  const withHash = value.startsWith("#") ? value : `#${value}`
+
+  // Nextcloud colors are usually hex; keep valid CSS hex only.
+  if (/^#[0-9a-fA-F]{6}$/.test(withHash)) return withHash.toLowerCase()
+  if (/^#[0-9a-fA-F]{3}$/.test(withHash)) return withHash.toLowerCase()
+
+  // Some systems may return RGBA hex; drop alpha for consistent UI colors.
+  if (/^#[0-9a-fA-F]{8}$/.test(withHash)) {
+    return `#${withHash.slice(1, 7).toLowerCase()}`
+  }
+
+  return null
+}
+
+function normalizeCalendarFeedUrl(rawUrl: string): string {
+  const url = new URL(rawUrl)
+  url.hash = ""
+  url.searchParams.set("export", "")
+
+  // Keep path canonical to avoid mismatch between trailing slash variants.
+  const path = url.pathname.replace(/\/+$/, "")
+  url.pathname = path || "/"
+
+  return url.toString().replace("export=", "export")
 }
 
 function decodeXmlEntities(value: string): string {
@@ -54,9 +88,9 @@ function parseDiscoveredCalendars(rawJson: string | null | undefined): Discovere
         const obj = entry as { url?: unknown; name?: unknown; color?: unknown }
         const url = typeof obj.url === "string" ? obj.url.trim() : ""
         const name = typeof obj.name === "string" ? obj.name.trim() : ""
-        const color = typeof obj.color === "string" ? obj.color.trim() || null : null
+        const color = normalizeCalendarColor(typeof obj.color === "string" ? obj.color : null)
         if (!url || !name) return null
-        return { url, name, color }
+        return { url: normalizeCalendarFeedUrl(url), name, color }
       })
       .filter((entry): entry is DiscoveredNextcloudCalendar => Boolean(entry))
   } catch {
@@ -172,6 +206,9 @@ function parseIcsEvents(icsText: string): ExternalCalendarEvent[] {
         startTime: start.time,
         endTime: end?.time ?? null,
         source: "NEXTCLOUD",
+        calendarUrl: null,
+        calendarName: null,
+        calendarColor: null,
       })
       continue
     }
@@ -317,11 +354,13 @@ export async function discoverNextcloudCalendars(userId: string): Promise<Discov
       Accept: "application/xml,text/xml;q=0.9,*/*;q=0.8",
     },
     body: `<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:apple="http://apple.com/ns/ical/" xmlns:cs="http://calendarserver.org/ns/" xmlns:cal="urn:ietf:params:xml:ns:caldav">
   <d:prop>
     <d:displayname />
     <d:resourcetype />
+    <apple:calendar-color />
     <oc:calendar-color />
+    <cs:calendar-color />
   </d:prop>
 </d:propfind>`,
     cache: "no-store",
@@ -342,11 +381,13 @@ export async function discoverNextcloudCalendars(userId: string): Promise<Discov
     const href = decodeXmlEntities(hrefMatch[1].trim())
     if (!href) continue
 
-    const absoluteUrl = withExportParam(new URL(href, sync.nextcloudServerUrl).toString())
+    const absoluteUrl = normalizeCalendarFeedUrl(
+      withExportParam(new URL(href, sync.nextcloudServerUrl).toString()),
+    )
     if (seen.has(absoluteUrl)) continue
 
     const displayNameMatch = block.match(/<[^>]*displayname>([\s\S]*?)<\/[^>]*displayname>/i)
-    const colorMatch = block.match(/<[^>]*calendar-color>([\s\S]*?)<\/[^>]*calendar-color>/i)
+    const colorMatch = block.match(/<[^>]*calendar-color[^>]*>([\s\S]*?)<\/[^>]*calendar-color>/i)
     const displayName = displayNameMatch ? decodeXmlEntities(displayNameMatch[1].trim()) : ""
 
     let fallbackName = absoluteUrl
@@ -360,7 +401,7 @@ export async function discoverNextcloudCalendars(userId: string): Promise<Discov
     calendars.push({
       url: absoluteUrl,
       name: displayName || fallbackName,
-      color: colorMatch ? decodeXmlEntities(colorMatch[1].trim()) || null : null,
+      color: normalizeCalendarColor(colorMatch ? decodeXmlEntities(colorMatch[1].trim()) : null),
     })
     seen.add(absoluteUrl)
   }
@@ -373,6 +414,8 @@ async function fetchExternalEventsFromUrl(args: {
   headers: HeadersInit
   from: string
   to: string
+  calendarName?: string | null
+  calendarColor?: string | null
 }): Promise<{ events: ExternalCalendarEvent[]; error: string | null }> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 5000)
@@ -422,6 +465,12 @@ async function fetchExternalEventsFromUrl(args: {
   const allExternal = parseIcsEvents(icsText)
   const events = allExternal
     .filter((event) => event.date >= args.from && event.date <= args.to)
+    .map((event) => ({
+      ...event,
+      calendarUrl: args.url,
+      calendarName: args.calendarName ?? "Nextcloud",
+      calendarColor: args.calendarColor ?? null,
+    }))
     .sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date)
       if ((a.startTime ?? "") !== (b.startTime ?? "")) return (a.startTime ?? "").localeCompare(b.startTime ?? "")
@@ -458,6 +507,12 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
       ? buildDefaultNextcloudCalendarUrl(sync.nextcloudServerUrl, sync.nextcloudUsername)
       : null
   const selectedCalendarUrls = parseSelectedCalendarUrls(sync.selectedCalendarUrlsJson)
+  const discoveredByUrl = new Map(
+    parseDiscoveredCalendars(sync.discoveredCalendarsJson).map((calendar) => [
+      normalizeCalendarFeedUrl(calendar.url),
+      calendar,
+    ]),
+  )
   const effectiveUrls = selectedCalendarUrls.length > 0
     ? selectedCalendarUrls
     : [sync.nextcloudIcsUrl?.trim() || configuredDefaultIcsUrl || generatedDefaultIcsUrl].filter(
@@ -490,12 +545,15 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
     let firstError: string | null = null
 
     for (const rawUrl of effectiveUrls) {
-      const url = sanitizeCalendarUrl(rawUrl)
+      const url = normalizeCalendarFeedUrl(sanitizeCalendarUrl(rawUrl))
+      const discoveredCalendar = discoveredByUrl.get(normalizeCalendarFeedUrl(url))
       const result = await fetchExternalEventsFromUrl({
         url,
         headers: requestHeaders,
         from,
         to,
+        calendarName: discoveredCalendar?.name ?? null,
+        calendarColor: discoveredCalendar?.color ?? null,
       })
       if (result.error && !firstError) firstError = result.error
       mergedExternal.push(...result.events)
@@ -503,7 +561,7 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
 
     const dedup = new Map<string, ExternalCalendarEvent>()
     for (const event of mergedExternal) {
-      const key = `${event.date}|${event.startTime ?? ""}|${event.title}|${event.id}`
+      const key = `${event.calendarUrl ?? ""}|${event.date}|${event.startTime ?? ""}|${event.title}|${event.id}`
       if (!dedup.has(key)) dedup.set(key, event)
     }
 
@@ -548,6 +606,9 @@ export type CalendarCombinedEvent = {
   startTime: string | null
   endTime: string | null
   source: "LOCAL" | "NEXTCLOUD"
+  calendarUrl: string | null
+  calendarName: string | null
+  calendarColor: string | null
 }
 
 export function mergeCalendarEvents(
@@ -562,7 +623,13 @@ export function mergeCalendarEvents(
   externalEvents: ExternalCalendarEvent[],
 ): CalendarCombinedEvent[] {
   return [
-    ...localEvents.map((event) => ({ ...event, source: "LOCAL" as const })),
+    ...localEvents.map((event) => ({
+      ...event,
+      source: "LOCAL" as const,
+      calendarUrl: null,
+      calendarName: null,
+      calendarColor: null,
+    })),
     ...externalEvents,
   ].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date)

@@ -13,6 +13,20 @@ import {
 } from "@/lib/calendar"
 import { redirect } from "next/navigation"
 
+function hexToRgba(hex: string, alpha: number): string {
+  const cleaned = hex.replace("#", "")
+  const full = cleaned.length === 3
+    ? cleaned.split("").map((c) => c + c).join("")
+    : cleaned
+
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(2,132,199,${alpha})`
+
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 function formatTimeRange(startTime: string | null, endTime: string | null): string {
   if (startTime && endTime) return `${startTime} - ${endTime}`
   if (startTime) return `ab ${startTime}`
@@ -73,24 +87,27 @@ export default async function CalendarPage() {
                 </p>
               ) : (
                 <form action={updateSelectedNextcloudCalendars} className="space-y-2">
-                  {discoveredCalendars.map((calendar) => (
-                    <label
-                      key={calendar.url}
-                      className="flex items-center gap-2 text-sm text-gray-700"
-                    >
-                      <input
-                        type="checkbox"
-                        name="selectedCalendarUrls"
-                        value={calendar.url}
-                        defaultChecked={selectedCalendarUrls.includes(calendar.url)}
-                      />
-                      <span
-                        className="inline-block w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: calendar.color ?? "#9ca3af" }}
-                      />
-                      <span>{calendar.name}</span>
-                    </label>
-                  ))}
+                  {discoveredCalendars.map((calendar) => {
+                    const dotColor = calendar.color ?? "#9ca3af"
+                    return (
+                      <label
+                        key={calendar.url}
+                        className="flex items-center gap-2 text-sm text-gray-700 rounded-md px-2 py-1.5 border border-gray-200 bg-white cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          name="selectedCalendarUrls"
+                          value={calendar.url}
+                          defaultChecked={selectedCalendarUrls.includes(calendar.url)}
+                        />
+                        <span
+                          className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: dotColor }}
+                        />
+                        <span className="font-medium text-gray-800">{calendar.name}</span>
+                      </label>
+                    )
+                  })}
 
                   <button
                     type="submit"
@@ -162,21 +179,47 @@ export default async function CalendarPage() {
                 <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">{date}</p>
                 <div className="space-y-2">
                   {dayEvents.map((event) => (
+                    (() => {
+                      const calendarColor = event.calendarColor ?? "#0284c7"
+                      const nextcloudStyle = {
+                        borderColor: hexToRgba(calendarColor, 0.45),
+                        borderLeftWidth: "4px",
+                        borderLeftColor: calendarColor,
+                        backgroundColor: hexToRgba(calendarColor, 0.12),
+                      }
+
+                      return (
                     <div
                       key={`${event.source}-${event.id}`}
                       className={`rounded-lg border p-3 ${
                         event.source === "NEXTCLOUD"
-                          ? "border-sky-200 bg-sky-50"
+                          ? ""
                           : "border-gray-200 bg-white"
                       }`}
+                      style={
+                        event.source === "NEXTCLOUD"
+                          ? nextcloudStyle
+                          : undefined
+                      }
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-medium text-gray-900">{event.title}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
                             {formatTimeRange(event.startTime, event.endTime)}
-                            {event.source === "NEXTCLOUD" && " · Nextcloud"}
+                            {event.source === "NEXTCLOUD" && ` · ${event.calendarName ?? "Nextcloud"}`}
                           </p>
+                          {event.source === "NEXTCLOUD" && (
+                            <span
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs mt-1"
+                              style={{
+                                color: event.calendarColor ?? "#0369a1",
+                                backgroundColor: hexToRgba(event.calendarColor ?? "#0284c7", 0.18),
+                              }}
+                            >
+                              {event.calendarName ?? "Nextcloud"}
+                            </span>
+                          )}
                           {event.description && (
                             <p className="text-sm text-gray-600 mt-2 whitespace-pre-line">
                               {event.description}
@@ -196,6 +239,8 @@ export default async function CalendarPage() {
                         )}
                       </div>
                     </div>
+                      )
+                    })()
                   ))}
                 </div>
               </div>
