@@ -1,8 +1,9 @@
 import { getCurrentSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { addShoppingItem, createShoppingList, removeShoppingItem, restoreShoppingItem, setShoppingView, updateShoppingItemTags } from "@/app/(app)/actions"
+import { addShoppingItem, addShoppingListMembers, createShoppingList, removeShoppingItem, removeShoppingListMember, restoreShoppingItem, setShoppingView, shareShoppingListWithAll, unshareShoppingListWithAll, updateShoppingItemTags } from "@/app/(app)/actions"
 import ShoppingAddOverlay from "@/components/ShoppingAddOverlay"
 import ShoppingListAddOverlay from "@/components/ShoppingListAddOverlay"
+import ShoppingListMembersAddOverlay from "@/components/ShoppingListMembersAddOverlay"
 import ShoppingListTabs from "@/components/ShoppingListTabs"
 import ShoppingTagEditor from "@/components/ShoppingTagEditor"
 import { getAccessibleShoppingLists, getOrCreateDefaultShoppingList, getRemovedShoppingItems, getShoppingItems, getShoppingSuggestions } from "@/lib/shopping"
@@ -48,6 +49,14 @@ export default async function ShoppingPage({
     getShoppingSuggestions(activeList.id),
   ])
 
+  const isListOwner = activeList.createdById === session.user.id
+  const existingMemberIds = new Set(activeList.members.map((member) => member.userId))
+  const addableUsers = shareableUsers.filter((user) => !existingMemberIds.has(user.id))
+  const currentMembers = activeList.members.map((member) => ({
+    id: member.user.id,
+    username: member.user.username,
+  }))
+
   return (
     <div className="max-w-2xl mx-auto p-4 pb-28 space-y-6">
       <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
@@ -67,6 +76,21 @@ export default async function ShoppingPage({
           Aktiv: {activeList.name} · Erstellt von {activeList.createdBy.username}
           {activeList.isSharedWithAll ? " · Für alle freigegeben" : ""}
         </p>
+
+        {isListOwner && (
+          <div className="mt-3">
+            <ShoppingListMembersAddOverlay
+              addAction={addShoppingListMembers}
+              removeAction={removeShoppingListMember}
+              shareAllAction={shareShoppingListWithAll}
+              unshareAllAction={unshareShoppingListWithAll}
+              listId={activeList.id}
+              users={addableUsers}
+              members={currentMembers}
+              isSharedWithAll={activeList.isSharedWithAll}
+            />
+          </div>
+        )}
 
         <div className="mt-3 inline-flex rounded-lg border border-gray-300 overflow-hidden bg-white">
           <form action={setShoppingView}>

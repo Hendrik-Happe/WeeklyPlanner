@@ -1078,3 +1078,126 @@ export async function createShoppingList(formData: FormData) {
 
   return created.id
 }
+
+export async function addShoppingListMembers(formData: FormData) {
+  const session = await requireSession()
+
+  const listId = String(formData.get("listId") ?? "").trim()
+  if (!listId) throw new Error("Liste fehlt")
+
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: listId },
+    select: { id: true, createdById: true, isSharedWithAll: true },
+  })
+
+  if (!list) throw new Error("Liste nicht gefunden")
+  if (list.createdById !== session.user.id) {
+    throw new Error("Nur der Ersteller darf weitere Nutzer hinzufügen")
+  }
+  if (list.isSharedWithAll) {
+    throw new Error("Diese Liste ist bereits mit allen Nutzern geteilt")
+  }
+
+  const memberIds = Array.from(
+    new Set(
+      formData
+        .getAll("memberIds")
+        .map((v) => String(v).trim())
+        .filter(Boolean)
+        .filter((id) => id !== session.user.id)
+    )
+  )
+
+  if (memberIds.length === 0) return
+
+  await prisma.$transaction(
+    memberIds.map((userId) =>
+      prisma.shoppingListMember.upsert({
+        where: {
+          listId_userId: { listId, userId },
+        },
+        update: {},
+        create: { listId, userId },
+      })
+    )
+  )
+
+  revalidatePath("/shopping")
+}
+
+export async function removeShoppingListMember(formData: FormData) {
+  const session = await requireSession()
+
+  const listId = String(formData.get("listId") ?? "").trim()
+  const memberId = String(formData.get("memberId") ?? "").trim()
+  if (!listId || !memberId) throw new Error("Ungültige Eingabe")
+
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: listId },
+    select: { id: true, createdById: true },
+  })
+
+  if (!list) throw new Error("Liste nicht gefunden")
+  if (list.createdById !== session.user.id) {
+    throw new Error("Nur der Ersteller darf Nutzer entfernen")
+  }
+
+  await prisma.shoppingListMember.deleteMany({
+    where: { listId, userId: memberId },
+  })
+
+  revalidatePath("/shopping")
+}
+
+export async function shareShoppingListWithAll(formData: FormData) {
+  const session = await requireSession()
+
+  const listId = String(formData.get("listId") ?? "").trim()
+  if (!listId) throw new Error("Liste fehlt")
+
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: listId },
+    select: { id: true, createdById: true, isSharedWithAll: true },
+  })
+
+  if (!list) throw new Error("Liste nicht gefunden")
+  if (list.createdById !== session.user.id) {
+    throw new Error("Nur der Ersteller darf die Freigabe ändern")
+  }
+  if (list.isSharedWithAll) return
+
+  await prisma.$transaction([
+    prisma.shoppingList.update({
+      where: { id: listId },
+      data: { isSharedWithAll: true },
+    }),
+    prisma.shoppingListMember.deleteMany({ where: { listId } }),
+  ])
+
+  revalidatePath("/shopping")
+}
+
+export async function unshareShoppingListWithAll(formData: FormData) {
+  const session = await requireSession()
+
+  const listId = String(formData.get("listId") ?? "").trim()
+  if (!listId) throw new Error("Liste fehlt")
+
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: listId },
+    select: { id: true, createdById: true, isSharedWithAll: true },
+  })
+
+  if (!list) throw new Error("Liste nicht gefunden")
+  if (list.createdById !== session.user.id) {
+    throw new Error("Nur der Ersteller darf die Freigabe ändern")
+  }
+  if (!list.isSharedWithAll) return
+
+  await prisma.shoppingList.update({
+    where: { id: listId },
+    data: { isSharedWithAll: false },
+  })
+
+  revalidatePath("/shopping")
+}
