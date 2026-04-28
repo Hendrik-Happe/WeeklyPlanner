@@ -65,19 +65,28 @@ function isActiveOnDate(task: FullTask, dateStr: string): boolean {
       return true
 
     case "WEEKLY": {
+      const weeklyAnchorStr = rule.validFrom
+        ? formatDate(new Date(rule.validFrom))
+        : formatDate(new Date(task.createdAt))
+      const weeklyAnchor = new Date(weeklyAnchorStr + "T00:00:00")
+
       if (rule.weekdays) {
         const days: number[] = JSON.parse(rule.weekdays)
-        return days.includes(dayOfWeek)
-      }
-      // Alle x Wochen ab validFrom
-      if (rule.validFrom) {
-        const start = new Date(rule.validFrom)
-        if (date.getDay() !== start.getDay()) return false
-        const diffDays = Math.round((date.getTime() - start.getTime()) / 86400000)
+        if (!days.includes(dayOfWeek)) return false
+
+        // Bei Wochen-Intervallen (z.B. alle 2 Wochen) muss auch mit gesetzten
+        // Wochentagen die Intervalllogik relativ zu validFrom gelten.
+        if (rule.interval <= 1) return true
+
+        const diffDays = Math.floor((date.getTime() - weeklyAnchor.getTime()) / 86400000)
         const diffWeeks = Math.floor(diffDays / 7)
         return diffWeeks >= 0 && diffWeeks % rule.interval === 0
       }
-      return true
+      // Alle x Wochen ab validFrom
+      if (date.getDay() !== weeklyAnchor.getDay()) return false
+      const diffDays = Math.floor((date.getTime() - weeklyAnchor.getTime()) / 86400000)
+      const diffWeeks = Math.floor(diffDays / 7)
+      return diffWeeks >= 0 && diffWeeks % rule.interval === 0
     }
 
     case "MONTHLY": {
