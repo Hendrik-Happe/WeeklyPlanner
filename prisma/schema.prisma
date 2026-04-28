@@ -32,6 +32,8 @@ model User {
   createdShoppingItems ShoppingItem[] @relation("ShoppingItemCreatedBy")
   createdShoppingLists ShoppingList[] @relation("ShoppingListCreatedBy")
   shoppingListMemberships ShoppingListMember[]
+  calendarEvents CalendarEvent[]
+  calendarSyncSetting CalendarSyncSetting?
 }
 
 model AuthRateLimit {
@@ -206,4 +208,38 @@ model ShoppingTagHistory {
 
   @@index([listId])
   @@unique([listId, itemNameNormalized, valueNormalized])
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  date        String   // ISO-Datum: "2026-04-23"
+  startTime   String?  // HH:mm
+  endTime     String?  // HH:mm
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+model CalendarSyncSetting {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nextcloudServerUrl String?
+  nextcloudIcsUrl  String?
+  discoveredCalendarsJson String?
+  selectedCalendarUrlsJson String?
+  nextcloudUsername String?
+  nextcloudAppPassword String?
+  oauthAccessToken String?
+  oauthRefreshToken String?
+  oauthTokenExpiresAt DateTime?
+  oauthState       String?
+  oauthStateExpiresAt DateTime?
+  enabled          Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
 }

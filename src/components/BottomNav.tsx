@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 const BASE_ITEMS = [
   { href: "/day", label: "Heute", icon: "📅" },
   { href: "/week", label: "Woche", icon: "📆" },
+  { href: "/calendar", label: "Termine", icon: "🗓️" },
   { href: "/meals", label: "Essen", icon: "🍽️" },
   { href: "/shopping", label: "Listen", icon: "📋" },
   { href: "/my-tasks", label: "Meine", icon: "✅" },

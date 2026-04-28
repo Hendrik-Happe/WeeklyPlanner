@@ -1,6 +1,7 @@
 "use server"
 
 import { getCurrentSession } from "@/lib/auth"
+import { discoverNextcloudCalendars, getCalendarSyncSettingsView } from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { formatDate } from "@/lib/tasks"
 import { revalidatePath } from "next/cache"
@@ -34,6 +35,23 @@ function sanitizeRecipeUrl(rawUrl: string | null): string | null {
 
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Ungültiger Link")
+  }
+
+  return parsed.toString()
+}
+
+function sanitizeCalendarUrl(rawUrl: string | null): string | null {
+  if (!rawUrl) return null
+
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new Error("Ungültige Kalender-URL")
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Ungültige Kalender-URL")
   }
 
   return parsed.toString()
@@ -540,6 +558,172 @@ export async function clearMealPlan(formData: FormData) {
   revalidatePath("/meals")
   revalidatePath("/day")
   revalidatePath("/week")
+}
+
+export async function createCalendarEvent(formData: FormData) {
+  const session = await requireSession()
+
+  const title = String(formData.get("title") ?? "").trim()
+  const description = String(formData.get("description") ?? "").trim() || null
+  const date = String(formData.get("date") ?? "").trim()
+  const startTime = String(formData.get("startTime") ?? "").trim() || null
+  const endTime = String(formData.get("endTime") ?? "").trim() || null
+
+  if (!title || !date) throw new Error("Titel und Datum sind erforderlich")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Ungültiges Datum")
+  if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) throw new Error("Ungültige Startzeit")
+  if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
+  if (startTime && endTime && endTime < startTime) throw new Error("Endzeit muss nach Startzeit liegen")
+
+  await prisma.calendarEvent.create({
+    data: {
+      userId: session.user.id,
+      title,
+      description,
+      date,
+      startTime,
+      endTime,
+    },
+  })
+
+  revalidatePath("/calendar")
+}
+
+export async function deleteCalendarEvent(formData: FormData) {
+  const session = await requireSession()
+
+  const id = String(formData.get("eventId") ?? "").trim()
+  if (!id) throw new Error("Ungültige Eingabe")
+
+  await prisma.calendarEvent.deleteMany({ where: { id, userId: session.user.id } })
+
+  revalidatePath("/calendar")
+}
+
+export async function saveCalendarSyncSettings(formData: FormData) {
+  const session = await requireSession()
+
+  const enabled = formData.get("enabled") === "on"
+  const rawServerUrl = String(formData.get("nextcloudServerUrl") ?? "").trim()
+  const rawUrl = String(formData.get("nextcloudIcsUrl") ?? "").trim()
+  const nextcloudUsername = String(formData.get("nextcloudUsername") ?? "").trim() || null
+  const nextcloudAppPasswordInput = String(formData.get("nextcloudAppPassword") ?? "").trim()
+  const keepExistingPassword = formData.get("keepNextcloudAppPassword") === "1"
+  const nextcloudServerUrl = sanitizeCalendarUrl(rawServerUrl || null)
+  const nextcloudIcsUrl = sanitizeCalendarUrl(rawUrl || null)
+
+  const existing = await prisma.calendarSyncSetting.findUnique({
+    where: { userId: session.user.id },
+    select: { nextcloudAppPassword: true },
+  })
+
+  const nextcloudAppPassword = nextcloudAppPasswordInput
+    ? nextcloudAppPasswordInput
+    : keepExistingPassword
+    ? existing?.nextcloudAppPassword ?? null
+    : null
+
+  await prisma.calendarSyncSetting.upsert({
+    where: { userId: session.user.id },
+    create: {
+      userId: session.user.id,
+      enabled,
+      nextcloudServerUrl,
+      nextcloudIcsUrl,
+      nextcloudUsername,
+      nextcloudAppPassword,
+    },
+    update: {
+      enabled,
+      nextcloudServerUrl,
+      nextcloudIcsUrl,
+      nextcloudUsername,
+      nextcloudAppPassword,
+    },
+  })
+
+  revalidatePath("/settings")
+  revalidatePath("/calendar")
+}
+
+export async function disconnectNextcloudOAuth() {
+  const session = await requireSession()
+
+  await prisma.calendarSyncSetting.upsert({
+    where: { userId: session.user.id },
+    create: {
+      userId: session.user.id,
+      enabled: false,
+    },
+    update: {
+      oauthAccessToken: null,
+      oauthRefreshToken: null,
+      oauthTokenExpiresAt: null,
+      oauthState: null,
+      oauthStateExpiresAt: null,
+      enabled: false,
+    },
+  })
+
+  revalidatePath("/settings")
+  revalidatePath("/calendar")
+}
+
+export async function refreshNextcloudSharedCalendars() {
+  const session = await requireSession()
+
+  const discovered = await discoverNextcloudCalendars(session.user.id)
+  const { selectedCalendarUrls } = await getCalendarSyncSettingsView(session.user.id)
+
+  const discoveredUrlSet = new Set(discovered.map((entry) => entry.url))
+  const nextSelected = selectedCalendarUrls.filter((url) => discoveredUrlSet.has(url))
+
+  await prisma.calendarSyncSetting.upsert({
+    where: { userId: session.user.id },
+    create: {
+      userId: session.user.id,
+      enabled: true,
+      discoveredCalendarsJson: JSON.stringify(discovered),
+      selectedCalendarUrlsJson: JSON.stringify(nextSelected),
+    },
+    update: {
+      discoveredCalendarsJson: JSON.stringify(discovered),
+      selectedCalendarUrlsJson: JSON.stringify(nextSelected),
+      enabled: true,
+    },
+  })
+
+  revalidatePath("/settings")
+  revalidatePath("/calendar")
+}
+
+export async function updateSelectedNextcloudCalendars(formData: FormData) {
+  const session = await requireSession()
+
+  const requestedUrls = formData
+    .getAll("selectedCalendarUrls")
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+
+  const { discoveredCalendars } = await getCalendarSyncSettingsView(session.user.id)
+  const allowed = new Set(discoveredCalendars.map((entry) => entry.url))
+  const selected = requestedUrls.filter((url) => allowed.has(url))
+
+  await prisma.calendarSyncSetting.upsert({
+    where: { userId: session.user.id },
+    create: {
+      userId: session.user.id,
+      enabled: true,
+      selectedCalendarUrlsJson: JSON.stringify(selected),
+    },
+    update: {
+      selectedCalendarUrlsJson: JSON.stringify(selected),
+      enabled: true,
+    },
+  })
+
+  revalidatePath("/settings")
+  revalidatePath("/calendar")
 }
 
 function normalizeShoppingValue(value: string): string {

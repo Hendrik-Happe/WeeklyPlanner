@@ -97,6 +97,11 @@ ensure_env_var "AUTH_RATE_LIMIT_WINDOW_SECONDS" "300"
 ensure_env_var "AUTH_RATE_LIMIT_MAX_ATTEMPTS" "5"
 ensure_env_var "AUTH_RATE_LIMIT_BLOCK_SECONDS" "900"
 ensure_env_var "AUTH_TRUST_PROXY_HEADERS" "false"
+ensure_env_var "NEXTCLOUD_SERVER_URL" ""
+ensure_env_var "NEXTCLOUD_DEFAULT_ICS_URL" ""
+ensure_env_var "NEXTCLOUD_DEFAULT_CALENDAR_SLUG" "personal"
+ensure_env_var "NEXTCLOUD_OAUTH_CLIENT_ID" ""
+ensure_env_var "NEXTCLOUD_OAUTH_CLIENT_SECRET" ""
 
 if [ -t 0 ]; then
   echo ""

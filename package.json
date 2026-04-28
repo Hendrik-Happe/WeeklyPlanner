@@ -1,12 +1,12 @@
 {
   "name": "weekly-planer",
-  "version": "1.0.1",
+  "version": "1.4.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "setup": "prisma generate && prisma db push && tsx scripts/seed.ts",
+    "setup": "npx prisma generate && npx prisma db push && tsx scripts/seed.ts",
     "lint": "next lint"
   },
   "dependencies": {
