@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { addShoppingItem, createShoppingList, removeShoppingItem, restoreShoppingItem, setShoppingView, updateShoppingItemTags } from "@/app/(app)/actions"
 import ShoppingAddOverlay from "@/components/ShoppingAddOverlay"
 import ShoppingListAddOverlay from "@/components/ShoppingListAddOverlay"
+import ShoppingListTabs from "@/components/ShoppingListTabs"
 import ShoppingTagEditor from "@/components/ShoppingTagEditor"
 import { getAccessibleShoppingLists, getOrCreateDefaultShoppingList, getRemovedShoppingItems, getShoppingItems, getShoppingSuggestions } from "@/lib/shopping"
 import { redirect } from "next/navigation"
@@ -54,24 +55,11 @@ export default async function ShoppingPage({
         <p className="text-sm text-gray-500">Mehrere Listen, flexibel teilbar. Vorschläge gelten nur für die aktive Liste.</p>
 
         <div className="mt-3 flex items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
-            {lists.map((list) => {
-              const isActive = list.id === activeList.id
-              return (
-                <a
-                  key={list.id}
-                  href={`/shopping?list=${list.id}`}
-                  className={`px-3 py-1.5 text-xs rounded-full border ${
-                    isActive
-                      ? "bg-blue-100 border-blue-300 text-blue-900"
-                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {list.name}
-                </a>
-              )
-            })}
-          </div>
+          <ShoppingListTabs
+            lists={lists.map((list) => ({ id: list.id, name: list.name }))}
+            activeListId={activeList.id}
+            selectedListId={listParam}
+          />
           <ShoppingListAddOverlay action={createShoppingList} users={shareableUsers} />
         </div>
 
