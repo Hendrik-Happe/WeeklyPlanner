@@ -9,12 +9,14 @@ type Props = {
   title: string
   description: string | null
   date: string
+  endDate: string | null
   startTime: string | null
   endTime: string | null
 }
 
 export default function NextcloudEventModalActions(props: Props) {
   const [isOpen, setIsOpen] = useState(false)
+  const [isAllDay, setIsAllDay] = useState(!props.startTime && !props.endTime)
 
   return (
     <>
@@ -80,28 +82,67 @@ export default function NextcloudEventModalActions(props: Props) {
                 className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
               />
 
-              <input
-                type="date"
-                name="date"
-                required
-                defaultValue={props.date}
-                className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-              />
-
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="time"
-                  name="startTime"
-                  defaultValue={props.startTime ?? ""}
-                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-                />
-                <input
-                  type="time"
-                  name="endTime"
-                  defaultValue={props.endTime ?? ""}
-                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-                />
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Startdatum</label>
+                  <input
+                    type="date"
+                    name="date"
+                    required
+                    defaultValue={props.date}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Enddatum</label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    defaultValue={props.endDate ?? ""}
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                  />
+                </div>
               </div>
+
+              <label className="flex items-center gap-2 text-sm text-gray-700 px-1 py-1.5">
+                <input
+                  type="checkbox"
+                  name="isAllDay"
+                  checked={isAllDay}
+                  onChange={(e) => setIsAllDay(e.target.checked)}
+                />
+                <span>Ganztägig</span>
+              </label>
+
+              {!isAllDay && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Startzeit</label>
+                    <input
+                      type="time"
+                      name="startTime"
+                      defaultValue={props.startTime ?? ""}
+                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Endzeit</label>
+                    <input
+                      type="time"
+                      name="endTime"
+                      defaultValue={props.endTime ?? ""}
+                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isAllDay && (
+                <>
+                  <input type="hidden" name="startTime" value="" />
+                  <input type="hidden" name="endTime" value="" />
+                </>
+              )}
 
               <textarea
                 name="description"

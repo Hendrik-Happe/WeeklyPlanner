@@ -217,6 +217,7 @@ model CalendarEvent {
   title       String
   description String?
   date        String   // ISO-Datum: "2026-04-23"
+  endDate     String?  // ISO-Datum bei mehrtaegigen Terminen
   startTime   String?  // HH:mm
   endTime     String?  // HH:mm
   createdAt   DateTime @default(now())

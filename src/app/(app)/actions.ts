@@ -572,15 +572,24 @@ export async function createCalendarEvent(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim()
   const description = String(formData.get("description") ?? "").trim() || null
   const date = String(formData.get("date") ?? "").trim()
-  const startTime = String(formData.get("startTime") ?? "").trim() || null
-  const endTime = String(formData.get("endTime") ?? "").trim() || null
+  const endDateInput = String(formData.get("endDate") ?? "").trim()
+  const isAllDay = formData.get("isAllDay") === "on"
+  const startTimeInput = String(formData.get("startTime") ?? "").trim() || null
+  const endTimeInput = String(formData.get("endTime") ?? "").trim() || null
+  const endDate = endDateInput || null
+  const startTime = isAllDay ? null : startTimeInput
+  const endTime = isAllDay ? null : endTimeInput
   const calendarTarget = String(formData.get("calendarTarget") ?? "local").trim()
 
   if (!title || !date) throw new Error("Titel und Datum sind erforderlich")
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Ungültiges Datum")
+  if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) throw new Error("Ungültiges Enddatum")
+  if (endDate && endDate < date) throw new Error("Enddatum muss am oder nach dem Startdatum liegen")
   if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) throw new Error("Ungültige Startzeit")
   if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
-  if (startTime && endTime && endTime < startTime) throw new Error("Endzeit muss nach Startzeit liegen")
+  if (startTime && endTime && (endDate ?? date) === date && endTime < startTime) {
+    throw new Error("Endzeit muss nach Startzeit liegen")
+  }
 
   const { discoveredCalendars } = await getCalendarSyncSettingsView(session.user.id)
   const allowedCalendarUrls = new Set(discoveredCalendars.map((entry) => entry.url))
@@ -602,6 +611,7 @@ export async function createCalendarEvent(formData: FormData) {
       title,
       description,
       date,
+      endDate,
       startTime,
       endTime,
     })
@@ -612,6 +622,7 @@ export async function createCalendarEvent(formData: FormData) {
         title,
         description,
         date,
+        endDate,
         startTime,
         endTime,
       },
@@ -619,6 +630,8 @@ export async function createCalendarEvent(formData: FormData) {
   }
 
   revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
 }
 
 export async function deleteCalendarEvent(formData: FormData) {
@@ -630,6 +643,8 @@ export async function deleteCalendarEvent(formData: FormData) {
   await prisma.calendarEvent.deleteMany({ where: { id, userId: session.user.id } })
 
   revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
 }
 
 export async function updateNextcloudCalendarEvent(formData: FormData) {
@@ -640,14 +655,23 @@ export async function updateNextcloudCalendarEvent(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim()
   const description = String(formData.get("description") ?? "").trim() || null
   const date = String(formData.get("date") ?? "").trim()
-  const startTime = String(formData.get("startTime") ?? "").trim() || null
-  const endTime = String(formData.get("endTime") ?? "").trim() || null
+  const endDateInput = String(formData.get("endDate") ?? "").trim()
+  const isAllDay = formData.get("isAllDay") === "on"
+  const startTimeInput = String(formData.get("startTime") ?? "").trim() || null
+  const endTimeInput = String(formData.get("endTime") ?? "").trim() || null
+  const endDate = endDateInput || null
+  const startTime = isAllDay ? null : startTimeInput
+  const endTime = isAllDay ? null : endTimeInput
 
   if (!eventId || !calendarUrl || !title || !date) throw new Error("Ungültige Eingabe")
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Ungültiges Datum")
+  if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) throw new Error("Ungültiges Enddatum")
+  if (endDate && endDate < date) throw new Error("Enddatum muss am oder nach dem Startdatum liegen")
   if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) throw new Error("Ungültige Startzeit")
   if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) throw new Error("Ungültige Endzeit")
-  if (startTime && endTime && endTime < startTime) throw new Error("Endzeit muss nach Startzeit liegen")
+  if (startTime && endTime && (endDate ?? date) === date && endTime < startTime) {
+    throw new Error("Endzeit muss nach Startzeit liegen")
+  }
 
   const { discoveredCalendars } = await getCalendarSyncSettingsView(session.user.id)
   const allowedCalendarUrls = new Set(discoveredCalendars.map((entry) => entry.url))
@@ -659,11 +683,14 @@ export async function updateNextcloudCalendarEvent(formData: FormData) {
     title,
     description,
     date,
+    endDate,
     startTime,
     endTime,
   })
 
   revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
 }
 
 export async function deleteNextcloudCalendarEvent(formData: FormData) {
@@ -682,6 +709,8 @@ export async function deleteNextcloudCalendarEvent(formData: FormData) {
   await deleteCalendarEventInNextcloud(session.user.id, calendarUrl, eventId)
 
   revalidatePath("/calendar")
+  revalidatePath("/day")
+  revalidatePath("/week")
 }
 
 export async function saveCalendarSyncSettings(formData: FormData) {

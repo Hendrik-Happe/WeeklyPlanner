@@ -1,12 +1,13 @@
 import {
-  createCalendarEvent,
   deleteCalendarEvent,
   refreshNextcloudSharedCalendars,
   updateSelectedNextcloudCalendars,
 } from "@/app/(app)/actions"
+import CreateCalendarEventForm from "@/components/CreateCalendarEventForm"
 import NextcloudEventModalActions from "@/components/NextcloudEventModalActions"
 import { getCurrentSession } from "@/lib/auth"
 import {
+  eventSpansDate,
   getCalendarEventsForRange,
   getCalendarSyncSettingsView,
   mergeCalendarEvents,
@@ -29,11 +30,12 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-function formatTimeRange(startTime: string | null, endTime: string | null): string {
-  if (startTime && endTime) return `${startTime} - ${endTime}`
+function formatTimeRange(startTime: string | null, endTime: string | null, date: string, endDate: string | null): string {
+  const dayRange = endDate && endDate !== date ? `${date} bis ${endDate} · ` : ""
+  if (startTime && endTime) return `${dayRange}${startTime} - ${endTime}`
   if (startTime) return `ab ${startTime}`
   if (endTime) return `bis ${endTime}`
-  return "ganztägig"
+  return `${dayRange}ganztägig`
 }
 
 function parseIsoDateToUtc(isoDate: string): Date {
@@ -117,10 +119,11 @@ export default async function CalendarPage({
   const events = mergeCalendarEvents(localEvents, externalEvents)
 
   const grouped = new Map<string, typeof events>()
-  for (const event of events) {
-    const bucket = grouped.get(event.date) ?? []
-    bucket.push(event)
-    grouped.set(event.date, bucket)
+  for (const date of weekDays.map((day) => formatDate(day))) {
+    grouped.set(
+      date,
+      events.filter((event) => eventSpansDate(event, date)),
+    )
   }
   const gridDates = getCalendarGridDates(from, to)
   const weekdayLabels = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
@@ -224,70 +227,16 @@ export default async function CalendarPage({
         const nextcloudTargets = discoveredCalendars.filter(
           (c) => selectedCalendarUrls.includes(c.url),
         )
-        const hasNextcloud = calendarSync?.oauthAccessToken && nextcloudTargets.length > 0
+        const hasNextcloud = !!(calendarSync?.oauthAccessToken && nextcloudTargets.length > 0)
         return (
-      <section className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-        <h2 className="font-semibold mb-3">Termin hinzufügen</h2>
-        <form action={createCalendarEvent} className="space-y-3">
-          <input
-            name="title"
-            required
-            placeholder="Titel"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          />
-
-          {hasNextcloud ? (
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Kalender</label>
-              <select
-                name="calendarTarget"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option value="local">Lokal (nur in dieser App)</option>
-                {nextcloudTargets.map((c) => (
-                  <option key={c.url} value={c.url}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <input type="hidden" name="calendarTarget" value="local" />
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <input
-              type="date"
-              name="date"
-              required
-              defaultValue={today}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          <section className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+            <h2 className="font-semibold mb-3">Termin hinzufügen</h2>
+            <CreateCalendarEventForm
+              today={today}
+              hasNextcloud={hasNextcloud}
+              nextcloudTargets={nextcloudTargets}
             />
-            <input
-              type="time"
-              name="startTime"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
-            <input
-              type="time"
-              name="endTime"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
-          </div>
-
-          <textarea
-            name="description"
-            placeholder="Notiz (optional)"
-            rows={3}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-          />
-
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-          >
-            Speichern
-          </button>
-        </form>
-      </section>
+          </section>
         )
       })()}
 
@@ -394,7 +343,7 @@ export default async function CalendarPage({
                         <div>
                           <p className="font-medium text-gray-900">{event.title}</p>
                           <p className="text-sm text-gray-500 mt-0.5">
-                            {formatTimeRange(event.startTime, event.endTime)}
+                            {formatTimeRange(event.startTime, event.endTime, event.date, event.endDate)}
                             {event.source === "NEXTCLOUD" && ` · ${event.calendarName ?? "Nextcloud"}`}
                           </p>
                           {event.source === "NEXTCLOUD" && (
@@ -433,6 +382,7 @@ export default async function CalendarPage({
                             title={event.title}
                             description={event.description}
                             date={event.date}
+                            endDate={event.endDate}
                             startTime={event.startTime}
                             endTime={event.endTime}
                           />

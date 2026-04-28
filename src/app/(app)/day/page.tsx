@@ -1,5 +1,5 @@
 import { getCurrentSession } from "@/lib/auth"
-import { getCalendarEventsForRange, mergeCalendarEvents } from "@/lib/calendar"
+import { eventSpansDate, getCalendarEventsForRange, mergeCalendarEvents } from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
 import { getMealPlansForDate, getRecipes } from "@/lib/meals"
@@ -9,11 +9,12 @@ import TaskCard from "@/components/TaskCard"
 import FilterBar from "@/components/FilterBar"
 import { redirect } from "next/navigation"
 
-function formatTimeRange(startTime: string | null, endTime: string | null): string {
-  if (startTime && endTime) return `${startTime} - ${endTime}`
+function formatTimeRange(startTime: string | null, endTime: string | null, date: string, endDate: string | null): string {
+  const dayRange = endDate && endDate !== date ? `${date} bis ${endDate} · ` : ""
+  if (startTime && endTime) return `${dayRange}${startTime} - ${endTime}`
   if (startTime) return `ab ${startTime}`
   if (endTime) return `bis ${endTime}`
-  return "ganztägig"
+  return `${dayRange}ganztägig`
 }
 
 export default async function DayPage({
@@ -35,7 +36,7 @@ export default async function DayPage({
     getRecipes(),
     getCalendarEventsForRange(session.user.id, dateStr, dateStr),
   ])
-  const events = mergeCalendarEvents(localEvents, externalEvents)
+  const events = mergeCalendarEvents(localEvents, externalEvents).filter((event) => eventSpansDate(event, dateStr))
 
   if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c: { date: string; status: string }) => c.date === dateStr && c.status === "DONE"))
   if (hideAssigned) tasks = tasks.filter((t) => !resolveAssignedTo(t, dateStr))
@@ -70,7 +71,7 @@ export default async function DayPage({
               <div key={`${event.source}-${event.id}`} className="rounded-md border border-gray-200 px-2 py-1.5">
                 <p className="text-sm font-medium text-gray-900">{event.title}</p>
                 <p className="text-xs text-gray-500">
-                  {formatTimeRange(event.startTime, event.endTime)}
+                  {formatTimeRange(event.startTime, event.endTime, event.date, event.endDate)}
                   {event.source === "NEXTCLOUD" && ` · ${event.calendarName ?? "Nextcloud"}`}
                 </p>
               </div>

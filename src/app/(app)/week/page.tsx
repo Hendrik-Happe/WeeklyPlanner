@@ -1,5 +1,5 @@
 import { getCurrentSession } from "@/lib/auth"
-import { getCalendarEventsForRange, mergeCalendarEvents } from "@/lib/calendar"
+import { eventSpansDate, getCalendarEventsForRange, mergeCalendarEvents } from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
 import MealPlanCard from "@/components/MealPlanCard"
@@ -10,11 +10,12 @@ import WeekNav from "@/components/WeekNav"
 import FilterBar from "@/components/FilterBar"
 import { redirect } from "next/navigation"
 
-function formatTimeRange(startTime: string | null, endTime: string | null): string {
-  if (startTime && endTime) return `${startTime} - ${endTime}`
+function formatTimeRange(startTime: string | null, endTime: string | null, date: string, endDate: string | null): string {
+  const dayRange = endDate && endDate !== date ? `${date} bis ${endDate} · ` : ""
+  if (startTime && endTime) return `${dayRange}${startTime} - ${endTime}`
   if (startTime) return `ab ${startTime}`
   if (endTime) return `bis ${endTime}`
-  return "ganztägig"
+  return `${dayRange}ganztägig`
 }
 
 function getWeekDays(date: Date): Date[] {
@@ -77,10 +78,11 @@ export default async function WeekPage({
   ])
   const events = mergeCalendarEvents(localEvents, externalEvents)
   const eventsByDay = new Map<string, typeof events>()
-  for (const event of events) {
-    const bucket = eventsByDay.get(event.date) ?? []
-    bucket.push(event)
-    eventsByDay.set(event.date, bucket)
+  for (const date of dateStrings) {
+    eventsByDay.set(
+      date,
+      events.filter((event) => eventSpansDate(event, date)),
+    )
   }
 
   const tasksByDay = await Promise.all(
@@ -138,7 +140,7 @@ export default async function WeekPage({
                   {(eventsByDay.get(dateStr) ?? []).map((event) => (
                     <div key={`${event.source}-${event.id}`} className="text-xs text-gray-700">
                       <span className="font-medium">{event.title}</span>
-                      <span className="text-gray-500"> · {formatTimeRange(event.startTime, event.endTime)}</span>
+                      <span className="text-gray-500"> · {formatTimeRange(event.startTime, event.endTime, event.date, event.endDate)}</span>
                       {event.source === "NEXTCLOUD" && (
                         <span className="text-gray-500"> · {event.calendarName ?? "Nextcloud"}</span>
                       )}

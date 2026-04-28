@@ -6,6 +6,7 @@ type ExternalCalendarEvent = {
   title: string
   description: string | null
   date: string
+  endDate: string | null
   startTime: string | null
   endTime: string | null
   source: "NEXTCLOUD"
@@ -154,20 +155,26 @@ function normalizeIcsLines(icsText: string): string[] {
   return unfolded
 }
 
-function toDateParts(raw: string): { date: string; time: string | null } | null {
+function toDateParts(raw: string): { date: string; time: string | null; isDateOnly: boolean } | null {
   // Supported: YYYYMMDD and YYYYMMDDTHHMM[SS][Z]
   if (/^\d{8}$/.test(raw)) {
     const yyyy = raw.slice(0, 4)
     const mm = raw.slice(4, 6)
     const dd = raw.slice(6, 8)
-    return { date: `${yyyy}-${mm}-${dd}`, time: null }
+    return { date: `${yyyy}-${mm}-${dd}`, time: null, isDateOnly: true }
   }
 
   const dateTime = raw.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/)
   if (!dateTime) return null
 
   const [, yyyy, mm, dd, hh, min] = dateTime
-  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}` }
+  return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${min}`, isDateOnly: false }
+}
+
+function addDaysToIsoDate(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00`)
+  d.setDate(d.getDate() + days)
+  return formatDate(d)
 }
 
 function parseIcsEvents(icsText: string): ExternalCalendarEvent[] {
@@ -203,6 +210,11 @@ function parseIcsEvents(icsText: string): ExternalCalendarEvent[] {
         title: summary || "Ohne Titel",
         description: description || null,
         date: start.date,
+        endDate: end
+          ? end.isDateOnly
+            ? addDaysToIsoDate(end.date, -1)
+            : end.date
+          : null,
         startTime: start.time,
         endTime: end?.time ?? null,
         source: "NEXTCLOUD",
@@ -464,7 +476,10 @@ async function fetchExternalEventsFromUrl(args: {
 
   const allExternal = parseIcsEvents(icsText)
   const events = allExternal
-    .filter((event) => event.date >= args.from && event.date <= args.to)
+    .filter((event) => {
+      const endDate = event.endDate ?? event.date
+      return event.date <= args.to && endDate >= args.from
+    })
     .map((event) => ({
       ...event,
       calendarUrl: args.url,
@@ -484,10 +499,15 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
   const localEvents = await prisma.calendarEvent.findMany({
     where: {
       userId,
-      date: {
-        gte: from,
-        lte: to,
-      },
+      AND: [
+        { date: { lte: to } },
+        {
+          OR: [
+            { endDate: null },
+            { endDate: { gte: from } },
+          ],
+        },
+      ],
     },
     orderBy: [{ date: "asc" }, { startTime: "asc" }, { createdAt: "asc" }],
   })
@@ -561,7 +581,7 @@ export async function getCalendarEventsForRange(userId: string, from: string, to
 
     const dedup = new Map<string, ExternalCalendarEvent>()
     for (const event of mergedExternal) {
-      const key = `${event.calendarUrl ?? ""}|${event.date}|${event.startTime ?? ""}|${event.title}|${event.id}`
+      const key = `${event.calendarUrl ?? ""}|${event.date}|${event.endDate ?? ""}|${event.startTime ?? ""}|${event.title}|${event.id}`
       if (!dedup.has(key)) dedup.set(key, event)
     }
 
@@ -611,6 +631,7 @@ function buildIcsContent(args: {
   title: string
   description: string | null
   date: string
+  endDate: string | null
   startTime: string | null
   endTime: string | null
 }): string {
@@ -626,7 +647,8 @@ function buildIcsContent(args: {
 
     if (args.endTime) {
       const endCompact = args.endTime.replace(":", "") + "00"
-      dtEnd = `DTEND;TZID=Europe/Berlin:${dateCompact}T${endCompact}`
+      const endDateCompact = (args.endDate ?? args.date).replace(/-/g, "")
+      dtEnd = `DTEND;TZID=Europe/Berlin:${endDateCompact}T${endCompact}`
     } else {
       const [hh, mm] = args.startTime.split(":").map(Number)
       const endHH = String((hh + 1) % 24).padStart(2, "0")
@@ -635,7 +657,7 @@ function buildIcsContent(args: {
     }
   } else {
     dtStart = `DTSTART;VALUE=DATE:${dateCompact}`
-    const nextDay = new Date(args.date)
+    const nextDay = new Date((args.endDate ?? args.date) + "T00:00:00")
     nextDay.setDate(nextDay.getDate() + 1)
     const nextDayCompact = nextDay.toISOString().slice(0, 10).replace(/-/g, "")
     dtEnd = `DTEND;VALUE=DATE:${nextDayCompact}`
@@ -727,6 +749,7 @@ export async function createCalendarEventInNextcloud(
     title: string
     description: string | null
     date: string
+    endDate: string | null
     startTime: string | null
     endTime: string | null
   },
@@ -764,6 +787,7 @@ export async function updateCalendarEventInNextcloud(
     title: string
     description: string | null
     date: string
+    endDate: string | null
     startTime: string | null
     endTime: string | null
   },
@@ -836,6 +860,7 @@ export type CalendarCombinedEvent = {
   title: string
   description: string | null
   date: string
+  endDate: string | null
   startTime: string | null
   endTime: string | null
   source: "LOCAL" | "NEXTCLOUD"
@@ -850,6 +875,7 @@ export function mergeCalendarEvents(
     title: string
     description: string | null
     date: string
+    endDate: string | null
     startTime: string | null
     endTime: string | null
   }>,
@@ -869,4 +895,9 @@ export function mergeCalendarEvents(
     if ((a.startTime ?? "") !== (b.startTime ?? "")) return (a.startTime ?? "").localeCompare(b.startTime ?? "")
     return a.title.localeCompare(b.title)
   })
+}
+
+export function eventSpansDate(event: { date: string; endDate: string | null }, date: string): boolean {
+  const end = event.endDate ?? event.date
+  return event.date <= date && end >= date
 }
