@@ -1,4 +1,5 @@
 import { getCurrentSession } from "@/lib/auth"
+import { getCalendarEventsForRange, mergeCalendarEvents } from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
 import { getMealPlansForDate, getRecipes } from "@/lib/meals"
@@ -7,6 +8,13 @@ import MealPlanCard from "@/components/MealPlanCard"
 import TaskCard from "@/components/TaskCard"
 import FilterBar from "@/components/FilterBar"
 import { redirect } from "next/navigation"
+
+function formatTimeRange(startTime: string | null, endTime: string | null): string {
+  if (startTime && endTime) return `${startTime} - ${endTime}`
+  if (startTime) return `ab ${startTime}`
+  if (endTime) return `bis ${endTime}`
+  return "ganztägig"
+}
 
 export default async function DayPage({
   searchParams,
@@ -22,10 +30,12 @@ export default async function DayPage({
   const today = getTodayInBerlin()
   const dateStr = formatDate(today)
   let tasks = await getTasksForDate(dateStr, session.user.id)
-  const [mealPlans, recipes] = await Promise.all([
+  const [mealPlans, recipes, { localEvents, externalEvents }] = await Promise.all([
     getMealPlansForDate(dateStr),
     getRecipes(),
+    getCalendarEventsForRange(session.user.id, dateStr, dateStr),
   ])
+  const events = mergeCalendarEvents(localEvents, externalEvents)
 
   if (hideDone) tasks = tasks.filter((t) => !t.completions.some((c: { date: string; status: string }) => c.date === dateStr && c.status === "DONE"))
   if (hideAssigned) tasks = tasks.filter((t) => !resolveAssignedTo(t, dateStr))
@@ -49,6 +59,24 @@ export default async function DayPage({
       <Suspense><FilterBar hideDone={hideDone} hideAssigned={hideAssigned} /></Suspense>
       <div className="mb-4">
         <MealPlanCard dateStr={dateStr} mealPlans={mealPlans} recipes={recipes} />
+      </div>
+      <div className="mb-4 rounded-xl border border-gray-100 bg-white p-3">
+        <h2 className="font-semibold text-sm mb-2">Termine heute</h2>
+        {events.length === 0 ? (
+          <p className="text-xs text-gray-400">Keine Termine</p>
+        ) : (
+          <div className="space-y-2">
+            {events.map((event) => (
+              <div key={`${event.source}-${event.id}`} className="rounded-md border border-gray-200 px-2 py-1.5">
+                <p className="text-sm font-medium text-gray-900">{event.title}</p>
+                <p className="text-xs text-gray-500">
+                  {formatTimeRange(event.startTime, event.endTime)}
+                  {event.source === "NEXTCLOUD" && ` · ${event.calendarName ?? "Nextcloud"}`}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {tasks.length === 0 ? (
         <p className="text-gray-400 text-center py-16 text-lg">Keine Aufgaben für heute 🎉</p>

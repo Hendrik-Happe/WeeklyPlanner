@@ -1,4 +1,5 @@
 import { getCurrentSession } from "@/lib/auth"
+import { getCalendarEventsForRange, mergeCalendarEvents } from "@/lib/calendar"
 import { prisma } from "@/lib/prisma"
 import { Suspense } from "react"
 import MealPlanCard from "@/components/MealPlanCard"
@@ -8,6 +9,13 @@ import TaskCard from "@/components/TaskCard"
 import WeekNav from "@/components/WeekNav"
 import FilterBar from "@/components/FilterBar"
 import { redirect } from "next/navigation"
+
+function formatTimeRange(startTime: string | null, endTime: string | null): string {
+  if (startTime && endTime) return `${startTime} - ${endTime}`
+  if (startTime) return `ab ${startTime}`
+  if (endTime) return `bis ${endTime}`
+  return "ganztägig"
+}
 
 function getWeekDays(date: Date): Date[] {
   const day = date.getDay()
@@ -62,10 +70,18 @@ export default async function WeekPage({
     ? await prisma.user.findMany({ select: { id: true, username: true }, orderBy: { username: "asc" } })
     : undefined
   const dateStrings = weekDays.map((day) => formatDate(day))
-  const [mealPlansByDate, recipes] = await Promise.all([
+  const [mealPlansByDate, recipes, { localEvents, externalEvents }] = await Promise.all([
     getMealPlansForDates(dateStrings),
     getRecipes(),
+    getCalendarEventsForRange(session.user.id, formatDate(monday), formatDate(sunday)),
   ])
+  const events = mergeCalendarEvents(localEvents, externalEvents)
+  const eventsByDay = new Map<string, typeof events>()
+  for (const event of events) {
+    const bucket = eventsByDay.get(event.date) ?? []
+    bucket.push(event)
+    eventsByDay.set(event.date, bucket)
+  }
 
   const tasksByDay = await Promise.all(
     weekDays.map(async (day) => {
@@ -112,6 +128,24 @@ export default async function WeekPage({
                 recipes={recipes}
                 compact
               />
+            </div>
+            <div className="mb-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
+              <p className="text-xs font-medium text-gray-600 mb-1">Termine</p>
+              {(eventsByDay.get(dateStr) ?? []).length === 0 ? (
+                <p className="text-xs text-gray-400">Keine Termine</p>
+              ) : (
+                <div className="space-y-1">
+                  {(eventsByDay.get(dateStr) ?? []).map((event) => (
+                    <div key={`${event.source}-${event.id}`} className="text-xs text-gray-700">
+                      <span className="font-medium">{event.title}</span>
+                      <span className="text-gray-500"> · {formatTimeRange(event.startTime, event.endTime)}</span>
+                      {event.source === "NEXTCLOUD" && (
+                        <span className="text-gray-500"> · {event.calendarName ?? "Nextcloud"}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {tasks.length === 0 ? (
               <p className="text-xs text-gray-300">Frei</p>
