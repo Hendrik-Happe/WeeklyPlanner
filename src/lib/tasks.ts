@@ -20,6 +20,7 @@ async function fetchAllTasks(userId: string) {
         { isPrivate: false },
         { isPrivate: true, createdById: userId },
         { isPrivate: true, assignedToId: userId },
+        { assignments: { some: { userId } } },
       ],
     },
     include: {
@@ -141,6 +142,7 @@ export async function getTasksForDate(dateStr: string, userId: string) {
           { isPrivate: false },
           { isPrivate: true, createdById: userId },
           { isPrivate: true, assignedToId: userId },
+          { assignments: { some: { userId } } },
         ],
       },
     },
